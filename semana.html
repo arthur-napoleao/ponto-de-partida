@@ -9,15 +9,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilo.css?v=1">
+<link rel="stylesheet" href="estilo.css?v=2">
 </head>
 <body>
 <div class="pagina">
   <div class="marca">Legado UERJ • Trilha de Carreira</div>
   <main id="app" class="tela"></main>
 </div>
-<script src="config.js?v=1"></script>
-<script src="comum.js?v=1"></script>
+<script src="config.js?v=2"></script>
+<script src="comum.js?v=2"></script>
 <script>
 /* Registro da semana — 3 minutos depois de cada encontro */
 (function () {
@@ -31,9 +31,7 @@
   ];
 
   // token: vem do link pessoal (?t=) ou do que ficou guardado neste aparelho
-  var t = new URLSearchParams(location.search).get('t');
-  if (t) P.gravar('pdp_token', t);
-  var token = t || P.ler('pdp_token', null) || (P.ler('pdp_estado', {}) || {}).token || null;
+  var token = P.tokenAtual();
 
   var rascunho = P.ler('pdp_rascunho', {});
   var locais = P.ler('pdp_registros_locais', []);   // o que este aparelho já enviou
@@ -66,6 +64,7 @@
           CAMPOS.map(function (c) { return r[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(r[c[0]]) + '</dd>' : ''; }).join('') + '</dl>';
       }).join('') + '</div>';
     }
+    h += '<p class="centro"><a class="botao texto" href="meu-teste.html' + (token ? '?t=' + encodeURIComponent(token) : '') + '">Ver o Meu teste</a></p>';
     if (!token) h += '<p class="pequeno suave">Ainda não fez o ponto de partida? <a href="./">Comece por aqui</a>.</p>';
     h += '<p class="rodape">Travou numa etapa? Olhe a anterior.<br>Isto não é uma avaliação psicológica.</p>';
     app.innerHTML = h;

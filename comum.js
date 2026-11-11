@@ -151,8 +151,16 @@
     if (raiz.document) document.addEventListener('visibilitychange', function () { if (!document.hidden) esvaziar(); });
   }
 
+  /* Token pessoal: vem do link (?t=) ou do que ficou guardado neste aparelho. */
+  function tokenAtual() {
+    var t = null;
+    try { t = new URLSearchParams(location.search).get('t'); } catch (e) {}
+    if (t) { gravar('pdp_token', t); return t; }
+    return ler('pdp_token', null) || (ler('pdp_estado', {}) || {}).token || null;
+  }
+
   var api = {
-    PERGUNTAS: PERGUNTAS, FRASES: FRASES, ETAPAS: ETAPAS, calcularEtapa: calcularEtapa,
+    PERGUNTAS: PERGUNTAS, FRASES: FRASES, ETAPAS: ETAPAS, calcularEtapa: calcularEtapa, tokenAtual: tokenAtual,
     ler: ler, gravar: gravar, uuid: uuid, novoToken: novoToken, esc: esc,
     rpc: rpc, enfileirar: enfileirar, esvaziar: esvaziar, aoMudarFila: aoMudarFila
   };

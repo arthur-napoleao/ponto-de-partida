@@ -178,7 +178,8 @@
       '<p class="pequeno">Depois de cada encontro da Trilha, volte por este link para o registro da semana (3 minutos). Guarde-o: é só seu.</p>' +
       '<p class="link-pessoal" id="link">' + esc(link) + '</p>' +
       '<button class="botao" id="copiar">Copiar meu link</button>' +
-      '<a class="botao claro" href="' + esc(link) + '">Abrir o registro da semana</a></div>';
+      '<a class="botao claro" href="' + esc(link) + '">Abrir o registro da semana</a>' +
+      '<a class="botao claro" href="meu-teste.html?t=' + encodeURIComponent(e.token) + '">Abrir o Meu teste</a></div>';
     document.getElementById('copiar').onclick = function () {
       var b = this, feito = function () { b.textContent = 'Link copiado'; setTimeout(function () { b.textContent = 'Copiar meu link'; }, 2500); };
       if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {

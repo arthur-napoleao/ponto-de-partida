@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213D">
+<meta name="robots" content="noindex">
+<title>Meu teste • Trilha de Carreira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css?v=2">
+<style>
+  .andaime { font-family: 'Domine', Georgia, serif; font-size: 1.05rem; font-weight: 700; line-height: 1.4; margin-bottom: 8px; }
+  .andaime .lacuna { color: var(--laranja-escuro); }
+  .resumo p { margin-top: 10px; }
+  .resumo p:first-child { margin-top: 0; }
+  .resumo b { color: var(--laranja); }
+  .rot-campo { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <div class="marca">Legado UERJ • Trilha de Carreira</div>
+  <main id="app" class="tela"></main>
+</div>
+<script src="config.js?v=2"></script>
+<script src="comum.js?v=2"></script>
+<script>
+/* Meu teste — aposta, teste, critério e data, com frases de andaime */
+(function () {
+  'use strict';
+  var P = window.PDP, esc = P.esc, app = document.getElementById('app');
+  var token = P.tokenAtual();
+  var BLOCOS = [
+    { rot: 'Aposta', antes: 'Para essa vida dar certo para mim, precisa ser verdade que', campos: [['aposta', '', 'ex.: eu goste de resolver problemas com dados no dia a dia']] },
+    { rot: 'Teste', antes: 'O jeito mais simples de ver isso acontecer é', campos: [['teste', '', 'ex.: passar uma tarde acompanhando uma analista de dados']] },
+    { rot: 'Critério', antes: '', campos: [['sigo_se', 'Sigo se', 'ex.: eu sair com vontade de fazer de novo'], ['paro_se', 'Paro ou mudo se', 'ex.: o tempo passar devagar']] },
+    { rot: 'Data', antes: '', campos: [['ate', 'Faço até', 'ex.: 25/11'], ['com_quem', 'com', 'ex.: a Ana, prima que trabalha na área']] }
+  ];
+  var TODOS = ['aposta', 'teste', 'sigo_se', 'paro_se', 'ate', 'com_quem'];
+
+  var dados = P.ler('pdp_meu_teste', null) || { id: P.uuid() };
+  var editando = !dados.salvo, nome = '';
+  function guardar() { P.gravar('pdp_meu_teste', dados); }
+
+  function desenhar() { editando ? formulario() : resumo(); }
+
+  function formulario() {
+    var h = '<h1>Meu teste</h1>' +
+      '<p>Complete as frases. Escreva do seu jeito, curto e concreto.</p>' +
+      '<form id="f" class="pilha" style="gap:20px" novalidate>';
+    if (!token) h += '<div class="campo"><label for="email">Seu e-mail (o mesmo do ponto de partida)</label>' +
+      '<input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="160" value="' + esc(dados.email) + '"></div>';
+    BLOCOS.forEach(function (b) {
+      h += '<div class="cartao pilha" style="gap:10px"><p class="rot-campo">' + b.rot + '</p>';
+      if (b.antes) h += '<p class="andaime">' + esc(b.antes) + ' <span class="lacuna">___</span>.</p>';
+      b.campos.forEach(function (c) {
+        var curto = c[0] === 'ate' || c[0] === 'com_quem';
+        h += '<div class="campo">' + (c[1] ? '<label class="andaime" for="' + c[0] + '" style="margin-bottom:6px">' + esc(c[1]) + ' <span class="lacuna">___</span></label>' : '') +
+          (curto
+            ? '<input id="' + c[0] + '" type="text" maxlength="200" placeholder="' + esc(c[2]) + '" value="' + esc(dados[c[0]]) + '"' + (c[1] ? '' : ' aria-label="' + esc(b.rot) + '"') + '>'
+            : '<textarea id="' + c[0] + '" maxlength="1000" rows="2" placeholder="' + esc(c[2]) + '"' + (c[1] ? '' : ' aria-label="' + esc(b.rot) + '"') + '>' + esc(dados[c[0]]) + '</textarea>') +
+          '</div>';
+      });
+      h += '</div>';
+    });
+    h += '<p class="erro" id="erro" hidden></p><button class="botao" type="submit">Guardar meu teste</button></form>' + rodape();
+    app.innerHTML = h;
+
+    document.getElementById('f').addEventListener('input', function (ev) {
+      if (ev.target.id) { dados[ev.target.id] = ev.target.value; guardar(); }
+    });
+    document.getElementById('f').onsubmit = function (ev) {
+      ev.preventDefault();
+      var erro = document.getElementById('erro');
+      var email = (dados.email || '').trim();
+      var vazios = TODOS.filter(function (k) { return !(dados[k] || '').trim(); }).length;
+      var falta = (!token && !/^\S+@\S+\.\S+$/.test(email)) ? 'Informe seu e-mail.' :
+        !(dados.aposta || '').trim() ? 'Complete pelo menos a aposta.' : '';
+      if (falta) { erro.textContent = falta; erro.hidden = false; return; }
+      if (vazios && !confirm('Faltam ' + vazios + ' lacuna' + (vazios > 1 ? 's' : '') + '. Guardar assim mesmo? Você pode voltar e completar depois.')) return;
+      var p = { id: dados.id, token: token || '', email: email };
+      TODOS.forEach(function (k) { p[k] = (dados[k] || '').trim(); });
+      P.enfileirar('pdp_aposta_enviar', { p: p });
+      dados.salvo = true; guardar();
+      editando = false; desenhar(); window.scrollTo(0, 0);
+    };
+  }
+
+  function v(k) { var x = (dados[k] || '').trim(); return x ? '<b>' + esc(x) + '</b>' : '<span class="suave">___</span>'; }
+
+  function resumo() {
+    app.innerHTML = '<h1>Meu teste</h1>' +
+      (nome ? '<p>' + esc(nome) + ', este é o seu teste para as próximas semanas.</p>' : '') +
+      '<div class="cartao escuro resumo">' +
+      '<p>Para essa vida dar certo para mim, precisa ser verdade que ' + v('aposta') + '.</p>' +
+      '<p>O jeito mais simples de ver isso acontecer é ' + v('teste') + '.</p>' +
+      '<p>Sigo se ' + v('sigo_se') + '. Paro ou mudo se ' + v('paro_se') + '.</p>' +
+      '<p>Faço até ' + v('ate') + ', com ' + v('com_quem') + '.</p></div>' +
+      '<div id="situacao" class="situacao" hidden></div>' +
+      '<p class="pequeno suave">Tire um print desta tela. Depois do teste, conte no registro da semana o que aprendeu.</p>' +
+      '<button class="botao claro" id="editar">Editar</button>' + rodape();
+    document.getElementById('editar').onclick = function () { editando = true; desenhar(); };
+    P.aoMudarFila(function (s) {
+      var el = document.getElementById('situacao'); if (!el) return;
+      el.hidden = false;
+      if (s === 'ok') { el.className = 'situacao ok'; el.textContent = 'Meu teste guardado.'; }
+      else { el.className = 'situacao pendente'; el.textContent = 'Gravando… Se a conexão cair, tentamos de novo sozinhos. Deixe esta página aberta.'; }
+    });
+  }
+
+  function rodape() {
+    var q = token ? '?t=' + encodeURIComponent(token) : '';
+    return '<p class="centro"><a class="botao texto" href="semana.html' + q + '">Ir para o registro da semana</a></p>' +
+      (token ? '' : '<p class="pequeno suave">Ainda não fez o ponto de partida? <a href="./">Comece por aqui</a>.</p>') +
+      '<p class="rodape">Isto não é uma avaliação psicológica.</p>';
+  }
+
+  desenhar();
+  P.esvaziar();
+  // com o link pessoal, recupera o que já foi gravado (por exemplo, vindo de outro aparelho)
+  if (token) P.rpc('pdp_registros', { p_token: token }).then(function (d) {
+    if (!d) return;
+    nome = d.nome ? d.nome.split(' ')[0] : '';
+    var a = d.aposta;
+    var ativo = document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if (a && !dados.salvo && !TODOS.some(function (k) { return dados[k]; })) {
+      TODOS.forEach(function (k) { dados[k] = a[k]; }); dados.id = a.id; dados.salvo = true; guardar(); editando = false;
+    }
+    if (!ativo) desenhar();
+  }, function () {});
+})();
+</script>
+</body>
+</html>
