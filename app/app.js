@@ -243,8 +243,7 @@
       '<p class="sobre">Seu ponto de partida</p>' +
       '<h1>Etapa ' + c.etapa + ': ' + esc(E.nome) + (c.consolidada ? ' <span class="selo">consolidada</span>' : '') + '</h1></div></div>' +
       '<p class="titulo" style="font-size:1.2rem;margin-top:14px">' + esc(E.pergunta) + '</p></div>' +
-      '<div class="bloco"><h3>O que significa</h3><p>' + esc(E.significa) + '</p></div>' +
-      (e.q7 !== c.etapa ? '<p class="faixa">Você se vê na etapa ' + e.q7 + '. Pelas suas respostas, vale olhar a etapa ' + c.etapa + ' primeiro.</p>' : '') +
+      P.htmlSignifica(e.r, e.q7) +
       '<div class="bloco"><h3>Sua aposta no exercício de hoje</h3><p class="forte">' + esc(E.aposta) + '</p></div>' +
       '<div class="bloco"><h3>Próximo passo da semana</h3><p class="forte">' + esc(E.passo) + '</p></div>' +
       '<div class="bloco"><h3>Como a etapa foi calculada</h3><p class="pequeno">' + comoFoi + '</p></div>';

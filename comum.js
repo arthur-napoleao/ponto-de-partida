@@ -51,6 +51,34 @@
     return { etapa: 5, consolidada: true, primeiraNao: null };
   }
 
+  /* Textos do resultado que dependem do caminho das respostas (revisão de 11/11 com Arthur).
+     r = 6 booleanos, q7 = etapa percebida (1 a 5). */
+  function textosResultado(r, q7) {
+    var c = calcularEtapa(r), significa = ETAPAS[c.etapa].significa, extra = '', divergencia = '';
+    if (c.consolidada) {
+      significa = 'Você já testa e fecha o ciclo. O ganho agora é manter o ritmo: um teste por vez, sempre com registro.';
+    } else if (c.etapa === 4 && c.primeiraNao === 5) {
+      significa = 'Você já tem caminhos prioritários. Falta testar um deles com uma pergunta definida.';
+    }
+    // "sim" depois do primeiro "não": a pessoa já faz coisas de etapas seguintes
+    if (!c.consolidada && r.slice(c.primeiraNao).some(Boolean)) {
+      extra = 'Você também já faz coisas das etapas seguintes. Esta é a base que ainda falta.';
+    }
+    if (q7 > c.etapa) {
+      divergencia = 'Você se vê na etapa ' + q7 + '. Pelas suas respostas, vale olhar a etapa ' + c.etapa + ' primeiro.';
+    } else if (q7 < c.etapa) {
+      divergencia = 'Você se vê na etapa ' + q7 + '. Pelas suas respostas, você já fez o trabalho das etapas anteriores: a etapa ' + c.etapa + ' é onde vale cavar agora.';
+    }
+    return { etapa: c.etapa, consolidada: c.consolidada, primeiraNao: c.primeiraNao, significa: significa, extra: extra, divergencia: divergencia };
+  }
+
+  function htmlSignifica(r, q7) {
+    var t = textosResultado(r, q7);
+    return '<div class="bloco"><h3>O que significa</h3><p>' + esc(t.significa) + '</p>' +
+      (t.extra ? '<p style="margin-top:8px">' + esc(t.extra) + '</p>' : '') + '</div>' +
+      (t.divergencia ? '<p class="faixa">' + esc(t.divergencia) + '</p>' : '');
+  }
+
   /* ---------- utilidades de navegador ---------- */
 
   function ler(chave, padrao) {
@@ -205,6 +233,7 @@
 
   var api = {
     PERGUNTAS: PERGUNTAS, FRASES: FRASES, ETAPAS: ETAPAS, calcularEtapa: calcularEtapa, tokenAtual: tokenAtual,
+    textosResultado: textosResultado, htmlSignifica: htmlSignifica,
     CURSOS: CURSOS, semestres: semestres, htmlCurso: htmlCurso, htmlFormatura: htmlFormatura, ligarCurso: ligarCurso, lerCurso: lerCurso,
     ler: ler, gravar: gravar, uuid: uuid, novoToken: novoToken, esc: esc,
     rpc: rpc, enfileirar: enfileirar, esvaziar: esvaziar, aoMudarFila: aoMudarFila
