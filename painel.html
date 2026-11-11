@@ -26,7 +26,9 @@
   table { border-collapse: collapse; width: 100%; font-size: .9rem; font-variant-numeric: tabular-nums; }
   th, td { padding: 6px 4px; text-align: center; }
   th { font-size: .78rem; color: var(--suave); font-weight: 800; }
-  td.cel { border: 2px solid var(--branco); border-radius: 4px; font-weight: 700; }
+  table.matriz { table-layout: fixed; margin-top: 6px; }
+  table.matriz th:first-child { width: 28px; }
+  td.cel { border: 2px solid var(--branco); border-radius: 4px; font-weight: 700; height: 34px; }
   td.diag { outline: 2px solid var(--azul); outline-offset: -2px; }
   .lista { list-style: none; padding: 0; margin: 10px 0 0; }
   .lista li { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--linha); }
@@ -123,10 +125,11 @@
       '<ul class="lista"><li><span>Mesma etapa</span><b>' + igual + '</b></li>' +
       '<li><span>Se veem numa etapa à frente</span><b>' + acima + '</b></li>' +
       '<li><span>Se veem numa etapa anterior</span><b>' + abaixo + '</b></li></ul>' +
-      '<table style="margin-top:14px" aria-label="Contagem por etapa percebida (linhas) e calculada (colunas)">' +
-      '<tr><th style="text-align:left">percebida ↓ · calculada →</th>' + [1, 2, 3, 4, 5].map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>' +
+      '<p class="pequeno suave" style="margin-top:14px">Linhas: etapa percebida. Colunas: etapa calculada.</p>' +
+      '<table class="matriz" aria-label="Contagem por etapa percebida (linhas) e calculada (colunas)">' +
+      '<tr><th></th>' + [1, 2, 3, 4, 5].map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>' +
       [1, 2, 3, 4, 5].map(function (p) {
-        return '<tr><th style="text-align:left">' + p + '</th>' + [1, 2, 3, 4, 5].map(function (c) {
+        return '<tr><th>' + p + '</th>' + [1, 2, 3, 4, 5].map(function (c) {
           var n = m[p + '-' + c] || 0, a = n ? 0.15 + 0.75 * (n / maxCel) : 0;
           var fundo = n ? 'rgba(242,140,40,' + a.toFixed(2) + ')' : 'var(--creme)';
           return '<td class="cel' + (p === c ? ' diag' : '') + '" style="background:' + fundo + '" title="Percebida ' + p + ', calculada ' + c + ': ' + n + '">' + (n || '') + '</td>';
