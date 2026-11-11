@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilo.css?v=5">
+<link rel="stylesheet" href="estilo.css?v=6">
 <style>
   .pagina.larga { max-width: 960px; }
   .grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
@@ -44,8 +44,8 @@
   <div class="marca">Legado UERJ • Trilha de Carreira</div>
   <main id="app" class="tela"></main>
 </div>
-<script src="config.js?v=5"></script>
-<script src="comum.js?v=5"></script>
+<script src="config.js?v=6"></script>
+<script src="comum.js?v=6"></script>
 <script>
 (function () {
   'use strict';
@@ -101,8 +101,8 @@
       num(total, 'pontos de partida') +
       num(pct(igual, total), 'se veem na etapa calculada') +
       num(d.linhas.filter(function (l) { return l.te_descreve; }).length, 'responderam “te descreve?”') +
-      num(d.linhas.filter(function (l) { return l.registros_feitos > 0; }).length, 'fizeram registro da semana') +
-      num(d.apostas, 'preencheram o Meu teste') +
+      num(d.linhas.filter(function (l) { return l.registros_feitos > 0; }).length, 'registraram reflexões') +
+      num(d.apostas, 'desenharam testes') +
       '</div>';
 
     h += '<div class="grade">';
@@ -144,24 +144,30 @@
       }).join('') + '</ul></div>';
 
     // registro da semana
-    h += '<div class="cartao"><h2>Registro da semana</h2>' +
+    h += '<div class="cartao"><h2>Reflexões por semana</h2>' +
       (semanas.length ? '<ul class="lista">' + semanas.map(function (s) {
         return '<li><span>Semana de ' + new Date(s.semana + 'T12:00:00').toLocaleDateString('pt-BR') + '</span><b>' + s.pessoas + ' pessoa' + (s.pessoas === 1 ? '' : 's') + '</b></li>';
       }).join('') + '</ul>' : '<p class="suave" style="margin-top:10px">Nenhum registro ainda.</p>') + '</div>';
+
+    var est = d.testes_por_estado || {};
+    h += '<div class="cartao"><h2>Testes por estado</h2><ul class="lista">' +
+      [['desenhado', 'Desenhados'], ['andamento', 'Em andamento'], ['concluido', 'Concluídos']].map(function (o) {
+        return '<li><span>' + o[1] + '</span><b>' + (est[o[0]] || 0) + '</b></li>';
+      }).join('') + '</ul></div>';
 
     h += '</div>';
 
     h += '<div class="cartao pilha"><h2>Exportar CSV</h2><div class="acoes">' +
       '<button class="botao" id="csv1">Pontos de partida (' + d.linhas.length + ')</button>' +
-      '<button class="botao claro" id="csv2">Registros da semana (' + d.linhas_registros.length + ')</button>' +
-      '<button class="botao claro" id="csv3">Meu teste (' + d.linhas_apostas.length + ')</button></div>' +
+      '<button class="botao claro" id="csv2">Reflexões (' + d.linhas_registros.length + ')</button>' +
+      '<button class="botao claro" id="csv3">Testes (' + d.linhas_apostas.length + ')</button></div>' +
       '<p class="pequeno suave">Separador ponto e vírgula, abre direto no Excel em português e no Google Planilhas.</p></div>' +
       '<p class="rodape"><button class="botao texto" id="sair">Sair</button></p>';
 
     app.innerHTML = h;
     document.getElementById('csv1').onclick = function () { baixar('pontos-de-partida', d.linhas, COLUNAS_PDP); };
     document.getElementById('csv2').onclick = function () { baixar('registros-da-semana', d.linhas_registros, ['nome', 'email', 'encontro', 'energia', 'surpresa', 'criterio', 'pergunta', 'criado_em']); };
-    document.getElementById('csv3').onclick = function () { baixar('meu-teste', d.linhas_apostas, ['nome', 'email', 'etapa_calculada', 'aposta', 'teste', 'sigo_se', 'paro_se', 'ate', 'com_quem', 'criado_em', 'atualizado_em']); };
+    document.getElementById('csv3').onclick = function () { baixar('testes', d.linhas_apostas, ['nome', 'email', 'etapa_calculada', 'estado', 'aposta', 'teste', 'sigo_se', 'paro_se', 'ate', 'com_quem', 'aprendi', 'muda', 'criado_em', 'atualizado_em', 'concluido_em']); };
     document.getElementById('sair').onclick = function () { try { sessionStorage.removeItem('pdp_painel'); } catch (e) {} clearTimeout(timer); senha = null; dados = null; entrar(); };
   }
 
