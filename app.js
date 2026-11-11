@@ -4,7 +4,6 @@
   var P = window.PDP, esc = P.esc, app = document.getElementById('app');
   var CHAVE = 'pdp_estado';
   var MOMENTOS = ['Buscando o primeiro estágio', 'Estagiando', 'Trabalhando', 'Outro'];
-  var PERIODOS = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '10º', '11º ou mais'];
   var DESCREVE = [['sim', 'Sim'], ['mais_ou_menos', 'Mais ou menos'], ['nao', 'Não']];
 
   // estado guardado no aparelho: recarregar a página não perde nada
@@ -36,10 +35,7 @@
       '<form id="f" class="pilha" novalidate style="gap:14px">' +
       '<div class="campo"><label for="nome">Nome</label><input id="nome" type="text" autocomplete="name" autocapitalize="words" maxlength="120" value="' + esc(d.nome) + '"></div>' +
       '<div class="campo"><label for="email">E-mail</label><input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="160" value="' + esc(d.email) + '"></div>' +
-      '<div class="campo"><label for="curso">Curso</label><input id="curso" type="text" list="cursos" maxlength="120" placeholder="Ex.: Engenharia de Produção" value="' + esc(d.curso) + '">' +
-      '<datalist id="cursos"><option>Administração</option><option>Ciências Econômicas</option><option>Engenharia Civil</option><option>Engenharia de Produção</option><option>Engenharia Elétrica</option><option>Engenharia Mecânica</option><option>Engenharia Química</option><option>Engenharia de Computação</option><option>Engenharia Ambiental e Sanitária</option><option>Engenharia Cartográfica</option></datalist></div>' +
-      '<div class="campo"><label for="periodo">Período</label><select id="periodo"><option value="">Escolha</option>' +
-      PERIODOS.map(function (p) { return '<option' + (d.periodo === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>' +
+      P.htmlCurso(d.curso) + P.htmlFormatura(d.formatura) +
       '<div class="campo"><label>Seu momento</label><div class="chips" id="momentos">' +
       MOMENTOS.map(function (m) { return '<button type="button" class="botao claro' + (d.momento === m ? ' marcado' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>'; }).join('') + '</div></div>' +
       '<p class="erro" id="erro" hidden></p>' +
@@ -48,9 +44,11 @@
       '</form>';
 
     function colher() {
-      ['nome', 'email', 'curso', 'periodo'].forEach(function (k) { d[k] = document.getElementById(k).value.trim(); });
+      ['nome', 'email'].forEach(function (k) { d[k] = document.getElementById(k).value.trim(); });
+      d.curso = P.lerCurso(); d.formatura = document.getElementById('formatura').value;
       salvar();
     }
+    P.ligarCurso();
     document.getElementById('f').addEventListener('input', colher);
     document.getElementById('momentos').onclick = function (ev) {
       var b = ev.target.closest('[data-m]'); if (!b) return;
@@ -60,7 +58,7 @@
     document.getElementById('f').onsubmit = function (ev) {
       ev.preventDefault(); colher();
       var falta = !d.nome ? 'seu nome' : !/^\S+@\S+\.\S+$/.test(d.email || '') ? 'um e-mail válido' :
-        !d.curso ? 'seu curso' : !d.periodo ? 'seu período' : !d.momento ? 'seu momento' : '';
+        !d.curso ? 'seu curso' : !d.formatura ? 'seu semestre de formatura' : !d.momento ? 'seu momento' : '';
       if (falta) { var el = document.getElementById('erro'); el.textContent = 'Falta preencher ' + falta + '.'; el.hidden = false; return; }
       ir('q', Math.min(e.r.length, 6));
     };
@@ -108,7 +106,7 @@
       P.gravar('pdp_token', e.token);
       P.enfileirar('pdp_enviar', { p: {
         id: e.id, token: e.token,
-        nome: e.ident.nome, email: e.ident.email, curso: e.ident.curso, periodo: e.ident.periodo, momento: e.ident.momento,
+        nome: e.ident.nome, email: e.ident.email, curso: e.ident.curso, formatura: e.ident.formatura, momento: e.ident.momento,
         q1: e.r[0], q2: e.r[1], q3: e.r[2], q4: e.r[3], q5: e.r[4], q6: e.r[5], q7: e.q7
       } });
     }

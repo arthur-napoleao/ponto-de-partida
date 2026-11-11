@@ -151,6 +151,50 @@
     if (raiz.document) document.addEventListener('visibilitychange', function () { if (!document.hidden) esvaziar(); });
   }
 
+  /* ---------- identificação: curso e semestre de formatura ---------- */
+
+  var CURSOS = ['Administração', 'Ciência da Computação', 'Ciências Atuariais', 'Ciências Biológicas', 'Ciências Contábeis',
+    'Ciências Econômicas', 'Ciências Sociais', 'Comunicação Social', 'Desenho Industrial', 'Direito', 'Educação Física',
+    'Enfermagem', 'Engenharia Ambiental e Sanitária', 'Engenharia Cartográfica', 'Engenharia Civil', 'Engenharia de Computação',
+    'Engenharia de Produção', 'Engenharia Elétrica', 'Engenharia Mecânica', 'Engenharia Química', 'Estatística', 'Filosofia',
+    'Física', 'Geografia', 'Geologia', 'História', 'Letras', 'Matemática', 'Medicina', 'Nutrição', 'Oceanografia',
+    'Odontologia', 'Pedagogia', 'Psicologia', 'Química', 'Relações Internacionais', 'Serviço Social', 'Turismo'];
+
+  /* Semestres a partir do atual (ex.: em novembro de 2026: 2026.2, 2027.1, ...), mais "ou depois" e "Já me formei". */
+  function semestres() {
+    var d = new Date(), a = d.getFullYear(), s = d.getMonth() < 6 ? 1 : 2, out = [];
+    for (var i = 0; i < 12; i++) { out.push([a + '.' + s, a + '.' + s + (i === 0 ? ' (este semestre)' : '')]); if (s === 2) { s = 1; a++; } else s = 2; }
+    out.push([a + '.' + s + ' ou depois', a + '.' + s + ' ou depois']);
+    out.push(['Já me formei', 'Já me formei']);
+    return out;
+  }
+
+  function htmlCurso(valor) {
+    var outro = !!valor && CURSOS.indexOf(valor) < 0;
+    return '<div class="campo"><label for="curso_sel">Curso</label><select id="curso_sel"><option value="">Escolha</option>' +
+      CURSOS.map(function (c) { return '<option' + (c === valor ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') +
+      '<option value="__outro"' + (outro ? ' selected' : '') + '>Outro curso</option></select>' +
+      '<input id="curso_outro" type="text" maxlength="120" placeholder="Qual curso?" aria-label="Qual curso?" style="margin-top:8px" value="' +
+      (outro ? esc(valor) : '') + '"' + (outro ? '' : ' hidden') + '></div>';
+  }
+
+  function htmlFormatura(valor) {
+    return '<div class="campo"><label for="formatura">Semestre previsto de formatura</label><select id="formatura"><option value="">Escolha</option>' +
+      semestres().map(function (s) { return '<option value="' + esc(s[0]) + '"' + (s[0] === valor ? ' selected' : '') + '>' + esc(s[1]) + '</option>'; }).join('') +
+      '</select></div>';
+  }
+
+  /* Liga o "Outro curso" ao campo de texto. Chamar depois de inserir htmlCurso na página. */
+  function ligarCurso() {
+    var s = document.getElementById('curso_sel'), o = document.getElementById('curso_outro');
+    s.addEventListener('change', function () { o.hidden = s.value !== '__outro'; if (!o.hidden) o.focus(); });
+  }
+
+  function lerCurso() {
+    var s = document.getElementById('curso_sel').value;
+    return s === '__outro' ? document.getElementById('curso_outro').value.trim() : s;
+  }
+
   /* Token pessoal: vem do link (?t=) ou do que ficou guardado neste aparelho. */
   function tokenAtual() {
     var t = null;
@@ -161,6 +205,7 @@
 
   var api = {
     PERGUNTAS: PERGUNTAS, FRASES: FRASES, ETAPAS: ETAPAS, calcularEtapa: calcularEtapa, tokenAtual: tokenAtual,
+    CURSOS: CURSOS, semestres: semestres, htmlCurso: htmlCurso, htmlFormatura: htmlFormatura, ligarCurso: ligarCurso, lerCurso: lerCurso,
     ler: ler, gravar: gravar, uuid: uuid, novoToken: novoToken, esc: esc,
     rpc: rpc, enfileirar: enfileirar, esvaziar: esvaziar, aoMudarFila: aoMudarFila
   };

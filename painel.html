@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilo.css?v=2">
+<link rel="stylesheet" href="estilo.css?v=3">
 <style>
   .pagina.larga { max-width: 960px; }
   .grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
@@ -44,8 +44,8 @@
   <div class="marca">Legado UERJ • Trilha de Carreira</div>
   <main id="app" class="tela"></main>
 </div>
-<script src="config.js?v=2"></script>
-<script src="comum.js?v=2"></script>
+<script src="config.js?v=3"></script>
+<script src="comum.js?v=3"></script>
 <script>
 (function () {
   'use strict';
@@ -168,7 +168,7 @@
   function num(v, rot) { return '<div class="cartao"><div class="valor">' + v + '</div><div class="rot">' + rot + '</div></div>'; }
   function pct(n, t) { return t ? Math.round(n / t * 100) + '%' : '–'; }
 
-  var COLUNAS_PDP = ['nome', 'email', 'curso', 'periodo', 'momento', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7',
+  var COLUNAS_PDP = ['nome', 'email', 'curso', 'formatura', 'momento', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7',
     'etapa_calculada', 'etapa_percebida', 'diferenca', 'consolidada', 'te_descreve', 'registros_feitos', 'fez_meu_teste', 'criado_em'];
 
   function celula(v) {
