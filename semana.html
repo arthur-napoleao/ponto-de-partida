@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213D">
+<meta name="robots" content="noindex">
+<title>Registro da semana • Trilha de Carreira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css?v=1">
+</head>
+<body>
+<div class="pagina">
+  <div class="marca">Legado UERJ • Trilha de Carreira</div>
+  <main id="app" class="tela"></main>
+</div>
+<script src="config.js?v=1"></script>
+<script src="comum.js?v=1"></script>
+<script>
+/* Registro da semana — 3 minutos depois de cada encontro */
+(function () {
+  'use strict';
+  var P = window.PDP, esc = P.esc, app = document.getElementById('app');
+  var CAMPOS = [
+    ['energia', 'O que me deu energia?'],
+    ['surpresa', 'O que me surpreendeu?'],
+    ['criterio', 'Um critério que descobri.'],
+    ['pergunta', 'A pergunta que levo para o próximo encontro.']
+  ];
+
+  // token: vem do link pessoal (?t=) ou do que ficou guardado neste aparelho
+  var t = new URLSearchParams(location.search).get('t');
+  if (t) P.gravar('pdp_token', t);
+  var token = t || P.ler('pdp_token', null) || (P.ler('pdp_estado', {}) || {}).token || null;
+
+  var rascunho = P.ler('pdp_rascunho', {});
+  var locais = P.ler('pdp_registros_locais', []);   // o que este aparelho já enviou
+  var remoto = null;                                 // o que o banco devolveu
+  var recemSalvo = false;
+
+  function desenhar() {
+    var nome = remoto && remoto.nome ? remoto.nome.split(' ')[0] : '';
+    var h =
+      '<h1>Registro da semana</h1>' +
+      '<p>' + (nome ? esc(nome) + ', três' : 'Três') + ' minutos depois do encontro. Respostas curtas valem.</p>';
+    if (recemSalvo) h += '<div class="situacao ok" id="salvo">Registro guardado. Até o próximo encontro!</div>';
+    h += '<form id="f" class="pilha" style="gap:14px" novalidate>';
+    if (!token) h += '<div class="campo"><label for="email">Seu e-mail (o mesmo do ponto de partida)</label>' +
+      '<input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="160" value="' + esc(rascunho.email) + '"></div>';
+    h += '<div class="campo"><label for="encontro">Qual encontro?</label>' +
+      '<input id="encontro" type="text" maxlength="120" placeholder="Ex.: workshop de 11/11" value="' + esc(rascunho.encontro) + '"></div>';
+    CAMPOS.forEach(function (c) {
+      h += '<div class="campo"><label for="' + c[0] + '">' + c[1] + '</label>' +
+        '<textarea id="' + c[0] + '" maxlength="1000" rows="2">' + esc(rascunho[c[0]]) + '</textarea></div>';
+    });
+    h += '<p class="erro" id="erro" hidden></p><button class="botao" type="submit">Guardar registro</button>' +
+      '<div id="situacao" class="situacao" hidden></div></form>';
+
+    var lista = anteriores();
+    if (lista.length) {
+      h += '<div class="cartao"><h2>Seus registros anteriores</h2>' + lista.map(function (r) {
+        return '<dl class="registro-antigo"><p class="forte" style="font-weight:800">' + esc(r.encontro) +
+          (r.criado_em ? ' <span class="suave pequeno" style="font-weight:400">· ' + new Date(r.criado_em).toLocaleDateString('pt-BR') + '</span>' : '') + '</p>' +
+          CAMPOS.map(function (c) { return r[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(r[c[0]]) + '</dd>' : ''; }).join('') + '</dl>';
+      }).join('') + '</div>';
+    }
+    if (!token) h += '<p class="pequeno suave">Ainda não fez o ponto de partida? <a href="./">Comece por aqui</a>.</p>';
+    h += '<p class="rodape">Travou numa etapa? Olhe a anterior.<br>Isto não é uma avaliação psicológica.</p>';
+    app.innerHTML = h;
+
+    document.getElementById('f').addEventListener('input', function (ev) {
+      if (ev.target.id) { rascunho[ev.target.id] = ev.target.value; P.gravar('pdp_rascunho', rascunho); }
+    });
+    document.getElementById('f').onsubmit = enviar;
+    P.aoMudarFila(function (s) {
+      var el = document.getElementById('situacao'); if (!el) return;
+      el.hidden = s === 'ok';
+      el.className = 'situacao pendente';
+      el.textContent = 'Gravando… Se a conexão cair, tentamos de novo sozinhos. Deixe esta página aberta.';
+    });
+  }
+
+  // junta o que veio do banco com o que este aparelho enviou e ainda não voltou
+  function anteriores() {
+    var vistos = {}, tudo = [];
+    ((remoto && remoto.registros) || []).concat(locais).forEach(function (r) {
+      if (!vistos[r.id]) { vistos[r.id] = 1; tudo.push(r); }
+    });
+    return tudo.sort(function (a, b) { return String(b.criado_em).localeCompare(String(a.criado_em)); });
+  }
+
+  function enviar(ev) {
+    ev.preventDefault();
+    var erro = document.getElementById('erro');
+    var r = { id: P.uuid(), criado_em: new Date().toISOString(), encontro: (rascunho.encontro || '').trim() };
+    CAMPOS.forEach(function (c) { r[c[0]] = (rascunho[c[0]] || '').trim(); });
+    var email = (rascunho.email || '').trim();
+    var falta = (!token && !/^\S+@\S+\.\S+$/.test(email)) ? 'Informe seu e-mail.' :
+      !r.encontro ? 'Diga de qual encontro é este registro.' :
+      !CAMPOS.some(function (c) { return r[c[0]]; }) ? 'Escreva em pelo menos um dos campos.' : '';
+    if (falta) { erro.textContent = falta; erro.hidden = false; return; }
+
+    locais.push(r); P.gravar('pdp_registros_locais', locais);
+    P.enfileirar('pdp_registro_enviar', { p: {
+      id: r.id, token: token || '', email: email, encontro: r.encontro,
+      energia: r.energia, surpresa: r.surpresa, criterio: r.criterio, pergunta: r.pergunta
+    } });
+    rascunho = { email: email }; P.gravar('pdp_rascunho', rascunho);
+    recemSalvo = true; desenhar(); window.scrollTo(0, 0);
+  }
+
+  desenhar();
+  P.esvaziar();
+  if (token) P.rpc('pdp_registros', { p_token: token }).then(function (d) {
+    if (!d) return;
+    remoto = d;
+    // só redesenha se a pessoa ainda não começou a digitar
+    var ativo = document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if (!ativo) desenhar();
+  }, function () {});
+})();
+</script>
+</body>
+</html>
