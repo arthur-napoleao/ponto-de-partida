@@ -64,6 +64,11 @@ input[type=text], input[type=email], select, textarea {
   border: 2px solid var(--linha); border-radius: 12px; padding: 13px 14px; appearance: none; -webkit-appearance: none;
 }
 textarea { min-height: 84px; resize: vertical; }
+select {
+  padding-right: 42px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%2314213D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center;
+}
 input:focus, select:focus, textarea:focus, .botao:focus-visible { outline: 3px solid var(--laranja); outline-offset: 1px; border-color: var(--azul); }
 .campo { display: block; }
 .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
