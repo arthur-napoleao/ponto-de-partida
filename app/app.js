@@ -110,7 +110,7 @@
 
     if (!semAnimar) {
       app.classList.remove('entra'); void app.offsetWidth; app.classList.add('entra');
-      window.scrollTo(0, 0);
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (x) { window.scrollTo(0, 0); }
     }
   }
 
