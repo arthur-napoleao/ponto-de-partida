@@ -1,0 +1,17 @@
+# O plano gratuito do Supabase pausa o projeto depois de cerca de 7 dias sem uso.
+# Esta rotina faz uma chamada leve ao banco duas vezes por semana.
+name: Manter banco ativo
+on:
+  schedule:
+    - cron: '0 12 * * 1,4'   # segunda e quinta, 9h em Brasília
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chamar o banco
+        run: |
+          URL=$(grep "url:" config.js | sed "s/.*'\(.*\)'.*/\1/")
+          CHAVE=$(grep "chave:" config.js | sed "s/.*'\(.*\)'.*/\1/")
+          curl -sf -X POST "$URL/rest/v1/rpc/pdp_ping" -H "apikey: $CHAVE" -H "Authorization: Bearer $CHAVE" -H "Content-Type: application/json" -d '{}'
