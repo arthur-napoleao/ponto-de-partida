@@ -82,3 +82,28 @@ dl.reflexao dd { margin: 0; white-space: pre-wrap; }
 .nota.marcado { background: var(--azul); border-color: var(--azul); color: var(--creme); }
 .nota-legenda { display: flex; justify-content: space-between; font-size: .78rem; font-weight: 700; color: var(--suave); }
 @media (min-width: 440px) { .nota-grade { grid-template-columns: repeat(11, 1fr); gap: 5px; } .nota { min-height: 44px; font-size: .95rem; } }
+
+/* barra com 5 áreas */
+.barra { grid-template-columns: repeat(5, 1fr); }
+.barra a { font-size: .68rem; padding: 8px 0; }
+
+/* planos */
+.pontos { display: inline-flex; gap: 3px; vertical-align: middle; }
+.pontos i { width: 8px; height: 8px; border-radius: 50%; background: var(--linha); display: inline-block; }
+.pontos i.on { background: var(--laranja); }
+.regua-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 10px; font-size: .78rem; font-weight: 700; color: var(--suave); }
+.regua-mini span { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.regua-titulo { font-size: .92rem; margin-bottom: 8px; }
+.regua-botoes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.pergunta textarea { min-height: 64px; }
+.acao-pergunta { display: inline-block; margin-top: 6px; font-weight: 800; font-size: .9rem; color: var(--laranja-escuro); text-decoration: none; }
+.sugestoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.sugestoes button { font: inherit; font-size: .85rem; font-weight: 600; text-align: left; border: 1.5px dashed var(--linha); background: var(--creme); color: var(--azul); border-radius: 12px; padding: 8px 12px; cursor: pointer; }
+.origem { font-size: .9rem; color: var(--suave); }
+.origem a { color: var(--azul); font-weight: 800; }
+.origem-cartao { border-left: 4px solid var(--laranja); }
+.alerta { color: var(--laranja-escuro); }
+.comparar { overflow-x: auto; }
+.comparar table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.comparar th, .comparar td { padding: 10px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--linha); }
+.comparar tr:first-child th { border-top: 0; font-family: 'Nunito Sans', sans-serif; font-weight: 700; }

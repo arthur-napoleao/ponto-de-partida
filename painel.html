@@ -258,6 +258,13 @@
         return '<li><span>' + o[1] + '</span><b>' + (est[o[0]] || 0) + '</b></li>';
       }).join('') + '</ul></div>';
 
+    var pl = d.planos || {};
+    h += '<div class="cartao"><h2>Planos</h2><ul class="lista">' +
+      [['pessoas', 'Pessoas com planos'], ['escritos', 'Planos escritos'], ['com_regua', 'Planos com régua completa'],
+       ['perguntas', 'Perguntas feitas'], ['testes_ligados', 'Testes nascidos de perguntas']].map(function (o) {
+        return '<li><span>' + o[1] + '</span><b>' + (pl[o[0]] || 0) + '</b></li>';
+      }).join('') + '</ul></div>';
+
     if (semanas.length) h += '<div class="cartao"><h2>Reflexões livres (formato antigo)</h2>' +
       '<ul class="lista">' + semanas.map(function (s) {
         return '<li><span>Semana de ' + new Date(s.semana + 'T12:00:00').toLocaleDateString('pt-BR') + '</span><b>' + s.pessoas + ' pessoa' + (s.pessoas === 1 ? '' : 's') + '</b></li>';
@@ -268,6 +275,7 @@
     h += '<div class="cartao pilha"><h2>Exportar CSV</h2><div class="acoes">' +
       '<button class="botao" id="csv1">Pontos de partida (' + d.linhas.length + ')</button>' +
       '<button class="botao claro" id="csv4">Encontros (' + todasExit.length + ')</button>' +
+      '<button class="botao claro" id="csv5">Planos (' + (d.linhas_planos || []).length + ')</button>' +
       '<button class="botao claro" id="csv3">Testes (' + d.linhas_apostas.length + ')</button>' +
       (d.linhas_registros.length ? '<button class="botao claro" id="csv2">Reflexões antigas (' + d.linhas_registros.length + ')</button>' : '') +
       '</div><p class="pequeno suave">Separador ponto e vírgula, abre direto no Excel em português e no Google Planilhas.</p></div>';
@@ -313,7 +321,8 @@
     });
     document.getElementById('csv1').onclick = function () { baixar('pontos-de-partida', d.linhas, COLUNAS_PDP); };
     document.getElementById('csv4').onclick = function () { baixar('encontros', todasExit, ['encontro', 'data_encontro'].concat(COLUNAS_EXIT.slice(1))); };
-    document.getElementById('csv3').onclick = function () { baixar('testes', d.linhas_apostas, ['nome', 'email', 'etapa_calculada', 'estado', 'aposta', 'teste', 'sigo_se', 'paro_se', 'ate', 'com_quem', 'aprendi', 'muda', 'criado_em', 'atualizado_em', 'concluido_em']); };
+    document.getElementById('csv3').onclick = function () { baixar('testes', d.linhas_apostas, ['nome', 'email', 'etapa_calculada', 'estado', 'plano_ordem', 'pergunta', 'aposta', 'teste', 'sigo_se', 'paro_se', 'ate_data', 'ate', 'com_quem', 'aprendi', 'muda', 'criado_em', 'atualizado_em', 'concluido_em']); };
+    document.getElementById('csv5').onclick = function () { baixar('planos', d.linhas_planos || [], ['nome', 'email', 'ordem', 'titulo', 'frase', 'recursos', 'animacao', 'confianca', 'coerencia', 'n_perguntas', 'perguntas', 'testes_ligados', 'criado_em', 'atualizado_em']); };
     var c2 = document.getElementById('csv2');
     if (c2) c2.onclick = function () { baixar('reflexoes-antigas', d.linhas_registros, ['nome', 'email', 'encontro', 'energia', 'surpresa', 'criterio', 'pergunta', 'criado_em']); };
     document.getElementById('sair').onclick = function () { try { sessionStorage.removeItem('pdp_painel'); } catch (e) {} clearTimeout(timer); senha = null; dados = null; entrar(); };
