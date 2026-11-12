@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Domine:wght@700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilo.css?v=6">
+<link rel="stylesheet" href="estilo.css?v=7">
 <style>
   .pagina.larga { max-width: 960px; }
   .grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
@@ -31,12 +31,42 @@
   td.cel { border: 2px solid var(--branco); border-radius: 4px; font-weight: 700; height: 34px; }
   td.diag { outline: 2px solid var(--azul); outline-offset: -2px; }
   .lista { list-style: none; padding: 0; margin: 10px 0 0; }
-  .lista li { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--linha); }
+  .lista li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--linha); }
   .lista li:first-child { border-top: 0; }
   .lista b { font-variant-numeric: tabular-nums; }
   .acoes { display: flex; flex-wrap: wrap; gap: 10px; }
   .acoes .botao { width: auto; flex: 1 1 220px; }
   .cabeca { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  /* encontros */
+  .novo { display: grid; grid-template-columns: 1fr 170px auto; gap: 10px; align-items: end; }
+  .novo .botao { width: auto; min-height: 50px; padding: 12px 20px; }
+  @media (max-width: 640px) { .novo { grid-template-columns: 1fr; } }
+  .encontro { border-top: 1px solid var(--linha); padding: 16px 0; }
+  .encontro:first-of-type { border-top: 0; }
+  .enc-topo { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+  .enc-nome { font-weight: 800; font-size: 1.05rem; }
+  .estado { display: inline-block; font-size: .74rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; margin-left: 6px; }
+  .estado.aberto { background: #E7F2E4; color: #24552A; }
+  .estado.fechado { background: var(--creme); color: var(--suave); }
+  .enc-num { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-size: .9rem; }
+  .enc-num b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .notas { display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px; align-items: end; height: 54px; margin-top: 10px; max-width: 420px; }
+  .notas div { background: var(--laranja); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .notas div.zero { background: var(--linha); }
+  .notas-eixo { display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px; max-width: 420px; font-size: .7rem; color: var(--suave); text-align: center; font-variant-numeric: tabular-nums; }
+  .mini { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .mini button { font: inherit; font-size: .85rem; font-weight: 700; border: 1.5px solid var(--linha); background: var(--branco); color: var(--azul); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+  .mini button.forte { border-color: var(--laranja); background: var(--laranja); }
+  .link-enc { font-size: .82rem; color: var(--suave); word-break: break-all; margin-top: 6px; }
+  .respostas { overflow-x: auto; margin-top: 12px; }
+  .respostas table { font-size: .85rem; min-width: 720px; }
+  .respostas th, .respostas td { text-align: left; vertical-align: top; padding: 8px 6px; border-top: 1px solid var(--linha); }
+  .respostas td.n { text-align: center; font-weight: 800; }
+  .filtro { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 700; cursor: pointer; }
+  .filtro input { width: 18px; height: 18px; }
+  details summary { cursor: pointer; font-weight: 800; }
+  .pessoas li { align-items: center; }
+  .pessoas label { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; font-size: .9rem; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -44,14 +74,16 @@
   <div class="marca">Legado UERJ • Trilha de Carreira</div>
   <main id="app" class="tela"></main>
 </div>
-<script src="config.js?v=6"></script>
-<script src="comum.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="comum.js?v=7"></script>
 <script>
 (function () {
   'use strict';
   var P = window.PDP, esc = P.esc, app = document.getElementById('app');
-  var senha = null, dados = null, timer = null;
-  try { senha = sessionStorage.getItem('pdp_painel'); } catch (e) {}
+  var senha = null, dados = null, timer = null, incluirTestes = false;
+  var abertos = {};            // encontros com as respostas expandidas
+  var recemCriado = null;      // slug do encontro que acabou de ser criado
+  try { senha = sessionStorage.getItem('pdp_painel'); incluirTestes = sessionStorage.getItem('pdp_painel_testes') === '1'; } catch (e) {}
 
   function entrar(msg) {
     app.innerHTML = '<div style="max-width:420px" class="pilha">' +
@@ -68,9 +100,12 @@
 
   function carregar(primeira) {
     clearTimeout(timer);
-    P.rpc('pdp_painel', { p_senha: senha }).then(function (d) {
+    P.rpc('pdp_painel', { p_senha: senha, p_incluir_testes: incluirTestes }).then(function (d) {
       try { sessionStorage.setItem('pdp_painel', senha); } catch (e) {}
-      dados = d; desenhar();
+      dados = d;
+      // não redesenha enquanto alguém digita no painel
+      var ativo = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && document.activeElement.id !== 's';
+      if (primeira || !ativo) desenhar();
       timer = setTimeout(carregar, 15000);
     }, function (err) {
       if (err && !err.rede) { try { sessionStorage.removeItem('pdp_painel'); } catch (e) {} senha = null; entrar('Senha incorreta.'); return; }
@@ -79,35 +114,111 @@
     });
   }
 
+  function acao(fn, args) {
+    clearTimeout(timer);
+    var a = { p_senha: senha }; for (var k in args) a[k] = args[k];
+    return P.rpc(fn, a).then(function (r) { carregar(); return r; }, function (err) {
+      alert(err && err.msg && /com respostas/.test(err.msg) ? 'Este encontro já tem respostas e não pode ser apagado. Feche-o em vez disso.' : 'Não deu certo. Tente de novo.');
+      carregar();
+    });
+  }
+
+  function linkEncontro(slug) { return new URL('app/#/e/' + slug, location.href.split('#')[0]).href; }
+  function dataBR(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR'); }
+  function hojeISO() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+
+  function copiar(texto, botao) {
+    var ok = function () { var t = botao.textContent; botao.textContent = 'Copiado'; setTimeout(function () { botao.textContent = t; }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(texto).then(ok, function () { prompt('Copie o link:', texto); });
+    else prompt('Copie o link:', texto);
+  }
+
+  /* NPS: % que deram 9–10 menos % que deram 0–6 */
+  function nps(notas, total) {
+    if (!total) return '–';
+    var pro = 0, det = 0;
+    for (var k in notas) { if (+k >= 9) pro += notas[k]; else if (+k <= 6) det += notas[k]; }
+    return Math.round((pro - det) / total * 100);
+  }
+
+  function blocoEncontros(d) {
+    var turma = d.total || 0;
+    var h = '<div class="cartao pilha" style="gap:14px"><div class="cabeca"><h2>Encontros</h2>' +
+      '<p class="pequeno suave">O link de cada encontro fica aberto até a data do encontro seguinte.</p></div>' +
+      '<form id="novo" class="novo">' +
+      '<div class="campo"><label for="enc-nome">Nome do encontro</label><input id="enc-nome" type="text" maxlength="120" placeholder="Ex.: Consultoria"></div>' +
+      '<div class="campo"><label for="enc-data">Data</label><input id="enc-data" type="date" value="' + hojeISO() + '"></div>' +
+      '<button class="botao" type="submit">Criar encontro</button></form>';
+
+    if (!d.encontros.length) h += '<p class="suave">Nenhum encontro criado ainda.</p>';
+    d.encontros.forEach(function (e) {
+      var max = 1; for (var k in e.notas) if (e.notas[k] > max) max = e.notas[k];
+      var link = linkEncontro(e.slug);
+      h += '<div class="encontro" data-id="' + e.id + '">' +
+        '<div class="enc-topo"><div><span class="enc-nome">' + esc(e.nome) + '</span>' +
+        '<span class="estado ' + (e.aberto ? 'aberto' : 'fechado') + '">' + (e.aberto ? 'aberto' : 'fechado') + '</span></div>' +
+        '<span class="pequeno suave">' + dataBR(e.data) + '</span></div>' +
+        (recemCriado === e.slug ? '<p class="situacao ok" style="margin-top:8px">Encontro criado. Copie o link abaixo para o slide ou o WhatsApp.</p>' : '') +
+        '<div class="enc-num"><span><b>' + e.respostas + '</b> responderam' + (turma ? ' (' + Math.round(e.respostas / turma * 100) + '% da turma)' : '') + '</span>' +
+        '<span>Recomendação média <b>' + (e.media == null ? '–' : String(e.media).replace('.', ',')) + '</b></span>' +
+        '<span title="% que deram 9 ou 10 menos % que deram de 0 a 6">NPS <b>' + nps(e.notas, e.respostas) + '</b></span></div>';
+      if (e.respostas) {
+        h += '<div class="notas" aria-label="Quantas pessoas deram cada nota de 0 a 10">' +
+          [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
+            var q = e.notas[n] || 0;
+            return '<div class="' + (q ? '' : 'zero') + '" style="height:' + (q ? Math.max(8, q / max * 100) : 3) + '%" title="Nota ' + n + ': ' + q + '"></div>';
+          }).join('') + '</div><div class="notas-eixo">' + [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>';
+      }
+      h += '<p class="link-enc">' + esc(link) + '</p><div class="mini">' +
+        '<button class="forte" data-acao="copiar" data-link="' + esc(link) + '">Copiar link</button>' +
+        (e.respostas ? '<button data-acao="ver">' + (abertos[e.id] ? 'Esconder respostas' : 'Ver respostas') + '</button><button data-acao="csv">CSV</button>' : '') +
+        '<button data-acao="' + (e.fechado_manual ? 'reabrir' : 'fechar') + '">' + (e.fechado_manual ? 'Reabrir' : 'Fechar agora') + '</button>' +
+        (e.respostas ? '' : '<button data-acao="apagar">Apagar</button>') + '</div>';
+      if (abertos[e.id] && e.respostas) {
+        h += '<div class="respostas"><table><tr><th>Nome</th><th>Nota</th><th>O que levo</th><th>Critério</th><th>Até a próxima</th><th>O que faria melhor</th></tr>' +
+          e.linhas.map(function (l) {
+            return '<tr><td>' + esc(l.nome || l.email) + '</td><td class="n">' + l.recomendacao + '</td><td>' + esc(l.levo) + '</td><td>' + esc(l.criterio) +
+              '</td><td>' + esc(l.proximo) + '</td><td>' + esc(l.melhorar) + '</td></tr>';
+          }).join('') + '</table></div>';
+      }
+      h += '</div>';
+    });
+    return h + '</div>';
+  }
+
   function desenhar() {
     var d = dados, total = d.total || 0;
     var maxEtapa = Math.max.apply(null, [1].concat([1, 2, 3, 4, 5].map(function (k) { return d.por_etapa[k] || 0; })));
 
-    // diferença percebida × calculada
     var igual = 0, acima = 0, abaixo = 0;
     d.linhas.forEach(function (l) { if (l.diferenca === 0) igual++; else if (l.diferenca > 0) acima++; else abaixo++; });
 
-    // matriz: linhas = percebida, colunas = calculada
     var m = {}, maxCel = 1;
     d.matriz.forEach(function (c) { m[c.p + '-' + c.c] = c.n; if (c.n > maxCel) maxCel = c.n; });
 
     var desc = d.descreve || {};
     var semanas = d.registros_semana || [];
+    var todasExit = [];
+    d.encontros.forEach(function (e) { e.linhas.forEach(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; x.data_encontro = e.data; todasExit.push(x); }); });
 
     var h = '<div class="cabeca"><h1>Painel do facilitador</h1>' +
       '<p class="pequeno suave">Atualiza a cada 15 s · <span id="hora">' + new Date(d.agora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '</span></p></div>';
+
+    h += '<label class="filtro"><input type="checkbox" id="incluir"' + (incluirTestes ? ' checked' : '') + '> Incluir respostas de teste' +
+      (d.testes_marcados ? ' (' + d.testes_marcados + ' marcada' + (d.testes_marcados > 1 ? 's' : '') + ')' : '') + '</label>';
+
+    h += blocoEncontros(d);
 
     h += '<div class="numeros">' +
       num(total, 'pontos de partida') +
       num(pct(igual, total), 'se veem na etapa calculada') +
       num(d.linhas.filter(function (l) { return l.te_descreve; }).length, 'responderam “te descreve?”') +
-      num(d.linhas.filter(function (l) { return l.registros_feitos > 0; }).length, 'registraram reflexões') +
+      num(d.linhas.filter(function (l) { return l.exit_tickets > 0; }).length, 'responderam algum encontro') +
       num(d.apostas, 'desenharam testes') +
       '</div>';
 
     h += '<div class="grade">';
 
-    // distribuição por etapa
     h += '<div class="cartao"><h2>Pessoas por etapa calculada</h2><div class="barras">' +
       [1, 2, 3, 4, 5].map(function (k) {
         var n = d.por_etapa[k] || 0;
@@ -120,7 +231,6 @@
       (d.consolidadas ? '<p class="pequeno suave" style="margin-top:10px">Na etapa 5, ' + d.consolidadas + ' com as seis respostas “sim” (consolidada).</p>' : '') +
       '</div>';
 
-    // percebida × calculada
     h += '<div class="cartao"><h2>Percebida × calculada</h2>' +
       '<ul class="lista"><li><span>Mesma etapa</span><b>' + igual + '</b></li>' +
       '<li><span>Se veem numa etapa à frente</span><b>' + acima + '</b></li>' +
@@ -137,17 +247,10 @@
       }).join('') + '</table>' +
       '<p class="pequeno suave" style="margin-top:8px">Diagonal contornada = mesma etapa.</p></div>';
 
-    // te descreve?
     h += '<div class="cartao"><h2>“Essa etapa te descreve?”</h2><ul class="lista">' +
       [['sim', 'Sim'], ['mais_ou_menos', 'Mais ou menos'], ['nao', 'Não'], ['sem_resposta', 'Sem resposta']].map(function (o) {
         return '<li><span>' + o[1] + '</span><b>' + (desc[o[0]] || 0) + '</b></li>';
       }).join('') + '</ul></div>';
-
-    // registro da semana
-    h += '<div class="cartao"><h2>Reflexões por semana</h2>' +
-      (semanas.length ? '<ul class="lista">' + semanas.map(function (s) {
-        return '<li><span>Semana de ' + new Date(s.semana + 'T12:00:00').toLocaleDateString('pt-BR') + '</span><b>' + s.pessoas + ' pessoa' + (s.pessoas === 1 ? '' : 's') + '</b></li>';
-      }).join('') + '</ul>' : '<p class="suave" style="margin-top:10px">Nenhum registro ainda.</p>') + '</div>';
 
     var est = d.testes_por_estado || {};
     h += '<div class="cartao"><h2>Testes por estado</h2><ul class="lista">' +
@@ -155,19 +258,64 @@
         return '<li><span>' + o[1] + '</span><b>' + (est[o[0]] || 0) + '</b></li>';
       }).join('') + '</ul></div>';
 
+    if (semanas.length) h += '<div class="cartao"><h2>Reflexões livres (formato antigo)</h2>' +
+      '<ul class="lista">' + semanas.map(function (s) {
+        return '<li><span>Semana de ' + new Date(s.semana + 'T12:00:00').toLocaleDateString('pt-BR') + '</span><b>' + s.pessoas + ' pessoa' + (s.pessoas === 1 ? '' : 's') + '</b></li>';
+      }).join('') + '</ul></div>';
+
     h += '</div>';
 
     h += '<div class="cartao pilha"><h2>Exportar CSV</h2><div class="acoes">' +
       '<button class="botao" id="csv1">Pontos de partida (' + d.linhas.length + ')</button>' +
-      '<button class="botao claro" id="csv2">Reflexões (' + d.linhas_registros.length + ')</button>' +
-      '<button class="botao claro" id="csv3">Testes (' + d.linhas_apostas.length + ')</button></div>' +
-      '<p class="pequeno suave">Separador ponto e vírgula, abre direto no Excel em português e no Google Planilhas.</p></div>' +
+      '<button class="botao claro" id="csv4">Encontros (' + todasExit.length + ')</button>' +
+      '<button class="botao claro" id="csv3">Testes (' + d.linhas_apostas.length + ')</button>' +
+      (d.linhas_registros.length ? '<button class="botao claro" id="csv2">Reflexões antigas (' + d.linhas_registros.length + ')</button>' : '') +
+      '</div><p class="pequeno suave">Separador ponto e vírgula, abre direto no Excel em português e no Google Planilhas.</p></div>';
+
+    h += '<details class="cartao"><summary>Marcar respostas de teste</summary>' +
+      '<p class="pequeno suave" style="margin-top:8px">Respostas marcadas saem dos números, gráficos e CSV, a não ser que “Incluir respostas de teste” esteja ligado. ' +
+      (incluirTestes ? '' : 'Para desmarcar uma resposta, ligue essa opção primeiro.') + '</p>' +
+      '<ul class="lista pessoas">' + d.linhas.map(function (l) {
+        return '<li><label><input type="checkbox" data-email="' + esc(l.email) + '"' + (l.teste ? ' checked' : '') + '> ' + esc(l.nome) +
+          ' <span class="suave">· ' + esc(l.email) + '</span></label><span class="pequeno suave">' + new Date(l.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</span></li>';
+      }).join('') + '</ul></details>' +
       '<p class="rodape"><button class="botao texto" id="sair">Sair</button></p>';
 
     app.innerHTML = h;
+    recemCriado = null;
+
+    document.getElementById('incluir').onchange = function () {
+      incluirTestes = this.checked;
+      try { sessionStorage.setItem('pdp_painel_testes', incluirTestes ? '1' : '0'); } catch (e) {}
+      carregar();
+    };
+    document.getElementById('novo').onsubmit = function (ev) {
+      ev.preventDefault();
+      var nome = document.getElementById('enc-nome').value.trim(), data = document.getElementById('enc-data').value;
+      if (!nome || !data) { alert('Preencha o nome e a data do encontro.'); return; }
+      this.querySelector('button').disabled = true;
+      document.activeElement.blur();
+      acao('pdp_encontro_criar', { p_nome: nome, p_data: data }).then(function (r) { if (r) recemCriado = r.slug; });
+    };
+    Array.prototype.forEach.call(app.querySelectorAll('.encontro [data-acao]'), function (b) {
+      b.onclick = function () {
+        var id = b.closest('.encontro').getAttribute('data-id'), e = d.encontros.filter(function (x) { return x.id === id; })[0], tipo = b.getAttribute('data-acao');
+        if (tipo === 'copiar') copiar(b.getAttribute('data-link'), b);
+        else if (tipo === 'ver') { abertos[id] = !abertos[id]; desenhar(); }
+        else if (tipo === 'csv') baixar('encontro-' + e.nome.toLowerCase().replace(/[^a-z0-9]+/gi, '-'), e.linhas.map(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; return x; }), COLUNAS_EXIT);
+        else if (tipo === 'fechar') { if (confirm('Fechar “' + e.nome + '” para novas respostas?')) acao('pdp_encontro_fechar', { p_id: id, p_fechar: true }); }
+        else if (tipo === 'reabrir') acao('pdp_encontro_fechar', { p_id: id, p_fechar: false });
+        else if (tipo === 'apagar') { if (confirm('Apagar “' + e.nome + '”? Ele ainda não tem respostas.')) acao('pdp_encontro_apagar', { p_id: id }); }
+      };
+    });
+    Array.prototype.forEach.call(app.querySelectorAll('.pessoas input[data-email]'), function (c) {
+      c.onchange = function () { acao('pdp_marcar_teste', { p_email: c.getAttribute('data-email'), p_teste: c.checked }); };
+    });
     document.getElementById('csv1').onclick = function () { baixar('pontos-de-partida', d.linhas, COLUNAS_PDP); };
-    document.getElementById('csv2').onclick = function () { baixar('registros-da-semana', d.linhas_registros, ['nome', 'email', 'encontro', 'energia', 'surpresa', 'criterio', 'pergunta', 'criado_em']); };
+    document.getElementById('csv4').onclick = function () { baixar('encontros', todasExit, ['encontro', 'data_encontro'].concat(COLUNAS_EXIT.slice(1))); };
     document.getElementById('csv3').onclick = function () { baixar('testes', d.linhas_apostas, ['nome', 'email', 'etapa_calculada', 'estado', 'aposta', 'teste', 'sigo_se', 'paro_se', 'ate', 'com_quem', 'aprendi', 'muda', 'criado_em', 'atualizado_em', 'concluido_em']); };
+    var c2 = document.getElementById('csv2');
+    if (c2) c2.onclick = function () { baixar('reflexoes-antigas', d.linhas_registros, ['nome', 'email', 'encontro', 'energia', 'surpresa', 'criterio', 'pergunta', 'criado_em']); };
     document.getElementById('sair').onclick = function () { try { sessionStorage.removeItem('pdp_painel'); } catch (e) {} clearTimeout(timer); senha = null; dados = null; entrar(); };
   }
 
@@ -175,7 +323,8 @@
   function pct(n, t) { return t ? Math.round(n / t * 100) + '%' : '–'; }
 
   var COLUNAS_PDP = ['nome', 'email', 'curso', 'formatura', 'momento', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7',
-    'etapa_calculada', 'etapa_percebida', 'diferenca', 'consolidada', 'te_descreve', 'registros_feitos', 'fez_meu_teste', 'criado_em'];
+    'etapa_calculada', 'etapa_percebida', 'diferenca', 'consolidada', 'te_descreve', 'exit_tickets', 'fez_meu_teste', 'teste', 'criado_em'];
+  var COLUNAS_EXIT = ['encontro', 'nome', 'email', 'recomendacao', 'levo', 'criterio', 'proximo', 'melhorar', 'criado_em'];
 
   function celula(v) {
     if (v === true) v = 'sim'; else if (v === false) v = 'não'; else if (v == null) v = '';

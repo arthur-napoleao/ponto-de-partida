@@ -1,6 +1,6 @@
 /* Trilha de Carreira — aplicativo de uma página só.
    Rotas (hash): #/ (boas-vindas) · #/entrar · #/comecar · #/p/1..7 · #/resultado
-                 #/inicio · #/ponto · #/reflexoes · #/reflexoes/nova
+                 #/inicio · #/ponto · #/reflexoes · #/e/SLUG (exit ticket de um encontro criado no painel)
                  #/testes · #/testes/novo · #/testes/ID · #/testes/ID/editar · #/testes/ID/concluir
    Dados: o aparelho é a primeira cópia (localStorage); o banco é sincronizado pela fila de comum.js. */
 (function () {
@@ -39,6 +39,8 @@
   if (tokenLink) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (x) {} }
   var email = P.ler('pdp_email', null);
   var casa = P.ler('pdp_casa', null) || { registros: [], testes: [] };
+  if (!casa.exits) casa.exits = [];
+  var exitsLocais = P.ler('pdp_exits', {});           // respostas deste aparelho, por encontro (slug)
   var rascunho = P.ler('pdp_rascunhos', {});
   var sincronizou = false;
 
@@ -75,6 +77,7 @@
       salvar();
       casa.registros = unir(casa.registros, d.registros);
       casa.testes = unir(casa.testes, d.testes);
+      casa.exits = unir(casa.exits, d.exits || []);
       salvarCasa();
       var ativo = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
       if (!ativo) desenhar(true);
@@ -93,19 +96,19 @@
 
   function desenhar(semAnimar) {
     var r = rota(), a = r[0] || '';
-    var fluxo = { '': 1, entrar: 1, comecar: 1, p: 1 };
+    var fluxo = { '': 1, entrar: 1, comecar: 1, p: 1, e: 1 };
     if (!identificado() && !fluxo[a]) { ir('', true); return; }
     if (identificado() && a === '') { ir('inicio', true); return; }
     if (a === 'p' && !(e.ident && e.ident.nome)) { ir('comecar', true); return; }
     if ((a === 'ponto' || a === 'resultado') && !temPonto()) { ir(identificado() ? 'inicio' : '', true); return; }
 
-    var comBarra = identificado() && !fluxo[a] && a !== 'resultado';
+    var comBarra = identificado() && !fluxo[a] && a !== 'resultado';  // fluxo inclui o exit ticket (e): tela focada
     document.body.classList.toggle('com-barra', comBarra);
     nav.hidden = !comBarra;
     if (comBarra) desenharBarra(a);
 
     ({ '': telaBoasVindas, entrar: telaEntrar, comecar: telaIdent, p: telaPergunta, resultado: telaResultado,
-      inicio: telaInicio, ponto: telaPonto, reflexoes: telaReflexoes, testes: telaTestes }[a] || telaInicio)(r);
+      inicio: telaInicio, ponto: telaPonto, reflexoes: telaReflexoes, testes: telaTestes, e: telaExit }[a] || telaInicio)(r);
 
     if (!semAnimar) {
       app.classList.remove('entra'); void app.offsetWidth; app.classList.add('entra');
@@ -289,7 +292,7 @@
     var andando = abertos.filter(function (t) { return t.estado === 'andamento'; })[0];
     if (andando) return { sobre: 'Teste em andamento', texto: 'Fechar o ciclo: o que aprendi?', href: '#/testes/' + andando.id };
     if (abertos[0]) return { sobre: 'Seu teste está desenhado', texto: 'Marcar que comecei', href: '#/testes/' + abertos[0].id };
-    return { sobre: 'Depois do encontro', texto: 'Registrar uma reflexão', href: '#/reflexoes/nova' };
+    return { sobre: 'Próximo passo', texto: 'Desenhar outro teste', href: '#/testes/novo' };
   }
 
   function telaInicio() {
@@ -307,10 +310,11 @@
         '<p class="pequeno" style="margin-top:4px">' + esc(E.passo) + '</p></div><span class="seta">›</span></div></a>';
     }
 
-    var nr = casa.registros.length, nt = casa.testes.length;
+    var nr = casa.exits.length + casa.registros.length, nt = casa.testes.length;
+    var ultima = casa.exits[0] || casa.registros[0];
     var abertos = casa.testes.filter(function (t) { return t.estado !== 'concluido'; }).length;
     h += '<a class="cartao" href="#/reflexoes"><div class="linha-cartao"><div class="icone">' + ICONES.reflexoes + '</div><div class="corpo"><h2>Reflexões</h2>' +
-      '<p class="pequeno suave">' + (nr ? nr + ' registrada' + (nr > 1 ? 's' : '') + ' · última em ' + dataCurta(casa.registros[0].criado_em) : 'Três minutos depois de cada encontro.') + '</p></div><span class="seta">›</span></div></a>';
+      '<p class="pequeno suave">' + (nr ? nr + ' registrada' + (nr > 1 ? 's' : '') + ' · última em ' + dataCurta(ultima.criado_em) : 'No fim de cada encontro, pelo link compartilhado na sessão.') + '</p></div><span class="seta">›</span></div></a>';
     h += '<a class="cartao" href="#/testes"><div class="linha-cartao"><div class="icone">' + ICONES.testes + '</div><div class="corpo"><h2>Meus testes</h2>' +
       '<p class="pequeno suave">' + (nt ? abertos + ' em aberto · ' + (nt - abertos) + ' concluído' + (nt - abertos === 1 ? '' : 's') : 'Desenhe um teste pequeno para a sua aposta.') + '</p></div><span class="seta">›</span></div></a>';
 
@@ -329,44 +333,132 @@
     };
   }
 
-  /* ---------- reflexões ---------- */
+  /* ---------- reflexões: histórico dos encontros ---------- */
+  var EXIT = [['levo', 'O que levo deste encontro'], ['criterio', 'Um critério que descobri'],
+    ['proximo', 'O que vou testar ou perguntar até a próxima sessão'], ['melhorar', 'O que faria este encontro ser melhor']];
+
   function telaReflexoes(r) {
-    if (r[1] === 'nova') return telaReflexaoNova();
+    if (r[1]) { ir('reflexoes', true); return; }      // o registro livre não existe mais
     var h = '<div class="topo-lista"><h1>Reflexões</h1></div>' +
-      '<a class="botao" href="#/reflexoes/nova">Registrar reflexão</a>';
-    if (!casa.registros.length) h += '<div class="vazio"><p>Nenhuma reflexão ainda.</p><p class="pequeno">Depois de cada encontro da Trilha, leva três minutos.</p></div>';
-    casa.registros.forEach(function (x) {
-      h += '<div class="cartao item"><span class="etiqueta">' + esc(x.encontro) + '</span> <span class="meta">' + dataCurta(x.criado_em) + '</span><dl class="reflexao">' +
-        REFLEXAO.map(function (c) { return x[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(x[c[0]]) + '</dd>' : ''; }).join('') + '</dl></div>';
+      '<p class="suave">No fim de cada encontro da Trilha, a reflexão é feita pelo link compartilhado na sessão. Tudo o que você registrou fica aqui.</p>';
+    if (!casa.exits.length && !casa.registros.length) h += '<div class="vazio"><p>Nenhuma reflexão ainda.</p></div>';
+    casa.exits.forEach(function (x) {
+      h += '<div class="cartao item"><span class="etiqueta">' + esc(x.encontro || 'Encontro') + '</span> <span class="meta">' +
+        (x.data ? dataCurta(x.data + 'T12:00:00') : dataCurta(x.criado_em)) + '</span><dl class="reflexao">' +
+        EXIT.map(function (c) { return x[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(x[c[0]]) + '</dd>' : ''; }).join('') + '</dl>' +
+        (x.slug ? '<a class="botao texto" style="padding-left:0" href="#/e/' + esc(x.slug) + '">Ver ou corrigir</a>' : '') + '</div>';
     });
+    if (casa.registros.length) {
+      h += '<p class="sobre" style="margin-top:8px">Reflexões anteriores</p>';
+      casa.registros.forEach(function (x) {
+        h += '<div class="cartao item"><span class="etiqueta">' + esc(x.encontro) + '</span> <span class="meta">' + dataCurta(x.criado_em) + '</span><dl class="reflexao">' +
+          REFLEXAO.map(function (c) { return x[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(x[c[0]]) + '</dd>' : ''; }).join('') + '</dl></div>';
+      });
+    }
     app.innerHTML = h;
   }
 
-  function telaReflexaoNova() {
-    var d = rascunho.reflexao || (rascunho.reflexao = {});
-    var h = '<a class="voltar-topo" href="#/reflexoes">‹ Reflexões</a><h1>Nova reflexão</h1>' +
-      '<p class="suave">Respostas curtas valem.</p><form id="f" class="pilha" style="gap:14px" novalidate>' +
-      '<div class="campo"><label for="encontro">Qual encontro?</label><input id="encontro" type="text" maxlength="120" placeholder="Ex.: workshop de 11/11" value="' + esc(d.encontro) + '"></div>';
-    REFLEXAO.forEach(function (c) {
-      h += '<div class="campo"><label for="' + c[0] + '">' + c[1] + '</label><textarea id="' + c[0] + '" maxlength="1000" rows="2">' + esc(d[c[0]]) + '</textarea></div>';
-    });
-    h += '<p class="erro" id="erro" hidden></p><button class="botao" type="submit">Guardar reflexão</button></form>';
-    app.innerHTML = h;
-    document.getElementById('f').addEventListener('input', function (ev) { if (ev.target.id) { d[ev.target.id] = ev.target.value; salvarRascunho(); } });
-    document.getElementById('f').onsubmit = function (ev) {
-      ev.preventDefault();
-      var x = { id: P.uuid(), criado_em: new Date().toISOString(), encontro: (d.encontro || '').trim() };
-      REFLEXAO.forEach(function (c) { x[c[0]] = (d[c[0]] || '').trim(); });
-      var falta = !x.encontro ? 'Diga de qual encontro é esta reflexão.' :
-        !REFLEXAO.some(function (c) { return x[c[0]]; }) ? 'Escreva em pelo menos um dos campos.' : '';
-      if (falta) { var el = document.getElementById('erro'); el.textContent = falta; el.hidden = false; return; }
-      casa.registros.unshift(x); salvarCasa();
-      var q = quem();
-      P.enfileirar('pdp_registro_enviar', { p: { id: x.id, token: q.token, email: q.email, encontro: x.encontro,
-        energia: x.energia, surpresa: x.surpresa, criterio: x.criterio, pergunta: x.pergunta } });
-      rascunho.reflexao = {}; salvarRascunho();
-      ir('reflexoes', true);
-    };
+  /* ---------- exit ticket de um encontro (único jeito de registrar reflexão e retorno) ---------- */
+  var infoEncontros = P.ler('pdp_info_encontros', {});
+
+  function telaExit(r) {
+    var slug = (r[1] || '').replace(/[^A-Za-z0-9]/g, '');
+    if (!slug) { ir(identificado() ? 'inicio' : '', true); return; }
+    var info = infoEncontros[slug];
+    var local = exitsLocais[slug] || (exitsLocais[slug] = { id: P.uuid() });
+    var doBanco = casa.exits.filter(function (x) { return x.slug === slug; })[0];
+    if (doBanco && local.recomendacao == null) {           // respondido em outro aparelho
+      local.id = doBanco.id; local.recomendacao = doBanco.recomendacao;
+      EXIT.forEach(function (c) { local[c[0]] = doBanco[c[0]] || ''; }); local.enviado = true;
+    }
+
+    function rodape() {
+      return '<a class="botao claro" href="#/' + (identificado() ? 'inicio' : '') + '">' + (identificado() ? 'Ir para o início' : 'Conhecer a ferramenta') + '</a>' +
+        '<p class="rodape">Isto não é uma avaliação psicológica.</p>';
+    }
+    function aviso(titulo, texto) {
+      app.innerHTML = '<p class="sobre">Reflexão do encontro</p><h1>' + esc(titulo) + '</h1><p>' + texto + '</p>' + rodape();
+    }
+    function cabeca() {
+      return '<p class="sobre">Reflexão do encontro</p><h1>' + esc(info && info.nome ? info.nome : 'Encontro da Trilha') + '</h1>' +
+        (info && info.data ? '<p class="suave">' + new Date(info.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }) + '</p>' : '');
+    }
+
+    function mostrar() {
+      if (info === null) return aviso('Link não encontrado', 'Este link não corresponde a nenhum encontro. Confira com quem compartilhou.');
+      if (info && !info.aberto && !local.enviado) return aviso(info.nome, 'As respostas para este encontro foram encerradas.');
+      if (local.enviado && !local.editando) return resumo();
+      formulario();
+    }
+
+    function resumo() {
+      app.innerHTML = cabeca() +
+        '<div class="situacao ok">Reflexão guardada. Até o próximo encontro!</div>' +
+        '<div class="cartao"><p class="sobre">Recomendaria a um amigo</p><p class="titulo" style="font-size:1.6rem;margin-top:4px">' + local.recomendacao + ' <span class="suave pequeno">de 10</span></p>' +
+        '<dl class="reflexao">' + EXIT.map(function (c) { return local[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(local[c[0]]) + '</dd>' : ''; }).join('') + '</dl></div>' +
+        (!info || info.aberto ? '<button class="botao claro" id="editar">Corrigir minha resposta</button>' : '') + rodape();
+      var b = document.getElementById('editar');
+      if (b) b.onclick = function () { local.editando = true; desenhar(true); };
+    }
+
+    function formulario() {
+      var d = local, h = cabeca() + '<form id="f" class="pilha" style="gap:18px" novalidate>';
+      if (!identificado()) h += '<div class="campo"><label for="email">Seu e-mail (o mesmo do ponto de partida)</label>' +
+        '<input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="160" value="' + esc(d.email) + '"></div>';
+      h += '<div class="cartao pilha" style="gap:10px"><p class="sobre">Sobre o encontro</p>' +
+        '<p class="andaime" style="margin:0">De 0 a 10, o quanto você recomendaria este encontro a um amigo interessado no tema?</p>' +
+        '<div class="nota-grade" role="radiogroup" aria-label="Nota de 0 a 10">' +
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
+          return '<button type="button" role="radio" aria-checked="' + (d.recomendacao === n) + '" class="nota' + (d.recomendacao === n ? ' marcado' : '') + '" data-n="' + n + '">' + n + '</button>';
+        }).join('') + '</div><div class="nota-legenda"><span>nada provável</span><span>muito provável</span></div></div>';
+      h += '<div class="cartao pilha" style="gap:14px"><p class="sobre">Reflexão</p>';
+      EXIT.slice(0, 3).forEach(function (c) {
+        h += '<div class="campo"><label for="' + c[0] + '">' + c[1] + (c[0] === 'criterio' ? ' (ou confirmei)' : '') + '</label>' +
+          '<textarea id="' + c[0] + '" maxlength="1000" rows="2">' + esc(d[c[0]]) + '</textarea></div>';
+      });
+      h += '</div><div class="campo"><label for="melhorar">O que faria este encontro ser melhor? <span class="suave">(opcional)</span></label>' +
+        '<textarea id="melhorar" maxlength="1000" rows="2">' + esc(d.melhorar) + '</textarea></div>' +
+        '<p class="erro" id="erro" hidden></p><button class="botao" type="submit">Guardar reflexão</button></form>' +
+        '<p class="rodape">Isto não é uma avaliação psicológica.</p>';
+      app.innerHTML = h;
+
+      function guardarLocal() { P.gravar('pdp_exits', exitsLocais); }
+      document.getElementById('f').addEventListener('input', function (ev) { if (ev.target.id) { d[ev.target.id] = ev.target.value; guardarLocal(); } });
+      aoClicar('[data-n]', function (b) {
+        d.recomendacao = Number(b.getAttribute('data-n')); guardarLocal();
+        Array.prototype.forEach.call(app.querySelectorAll('[data-n]'), function (x) {
+          var on = x === b; x.classList.toggle('marcado', on); x.setAttribute('aria-checked', on);
+        });
+      });
+      document.getElementById('f').onsubmit = function (ev) {
+        ev.preventDefault();
+        var erro = document.getElementById('erro'), mail = (d.email || '').trim().toLowerCase();
+        var falta = (!identificado() && !/^\S+@\S+\.\S+$/.test(mail)) ? 'Informe seu e-mail.' :
+          d.recomendacao == null ? 'Escolha uma nota de 0 a 10.' :
+          !EXIT.slice(0, 3).some(function (c) { return (d[c[0]] || '').trim(); }) ? 'Escreva em pelo menos um dos campos da reflexão.' : '';
+        if (falta) { erro.textContent = falta; erro.hidden = false; return; }
+        if (!identificado()) { email = mail; P.gravar('pdp_email', email); }
+        var q = quem(), p = { id: d.id, encontro: slug, token: q.token, email: q.email, recomendacao: d.recomendacao };
+        EXIT.forEach(function (c) { d[c[0]] = (d[c[0]] || '').trim(); p[c[0]] = d[c[0]]; });
+        P.enfileirar('pdp_exit_enviar', { p: p });
+        d.enviado = true; d.editando = false; guardarLocal();
+        var item = { id: d.id, slug: slug, encontro: info && info.nome, data: info && info.data, recomendacao: d.recomendacao, criado_em: new Date().toISOString() };
+        EXIT.forEach(function (c) { item[c[0]] = d[c[0]]; });
+        casa.exits = [item].concat(casa.exits.filter(function (x) { return x.slug !== slug; })); salvarCasa();
+        desenhar();
+      };
+    }
+
+    if (info === undefined) app.innerHTML = '<p class="sobre">Reflexão do encontro</p><p class="suave">Abrindo o encontro…</p>';
+    else mostrar();
+    // confirma no banco se o encontro existe e está aberto (sem rede: segue com o que tem)
+    P.rpc('pdp_encontro', { p_slug: slug }).then(function (x) {
+      if (rota()[0] !== 'e' || rota()[1] !== r[1]) return;
+      var mudou = JSON.stringify(x) !== JSON.stringify(info);
+      info = x; infoEncontros[slug] = x; P.gravar('pdp_info_encontros', infoEncontros);
+      var ativo = document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+      if (mudou && !ativo) mostrar();
+    }, function () { if (info === undefined) { info = false; mostrar(); } });
   }
 
   /* ---------- testes ---------- */

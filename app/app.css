@@ -70,3 +70,15 @@ dl.reflexao { margin: 8px 0 0; }
 dl.reflexao dt { font-size: .76rem; font-weight: 800; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; margin-top: 10px; }
 dl.reflexao dd { margin: 0; white-space: pre-wrap; }
 .aviso-topo { font-size: .85rem; font-weight: 700; border-radius: 12px; padding: 8px 12px; text-align: center; background: #FCEBD3; color: #6B3C05; }
+
+/* exit ticket: escala de 0 a 10 */
+.nota-grade { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.nota {
+  min-height: 48px; border-radius: 12px; border: 2px solid var(--linha); background: var(--branco); color: var(--azul);
+  font: inherit; font-weight: 800; font-size: 1.05rem; cursor: pointer; font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform .08s;
+}
+.nota:active { transform: scale(.95); }
+.nota.marcado { background: var(--azul); border-color: var(--azul); color: var(--creme); }
+.nota-legenda { display: flex; justify-content: space-between; font-size: .78rem; font-weight: 700; color: var(--suave); }
+@media (min-width: 440px) { .nota-grade { grid-template-columns: repeat(11, 1fr); gap: 5px; } .nota { min-height: 44px; font-size: .95rem; } }

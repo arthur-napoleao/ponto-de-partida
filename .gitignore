@@ -2,3 +2,5 @@
 node_modules
 supabase/.temp
 HANDOFF.md
+BACKLOG.md
+.DS_Store
