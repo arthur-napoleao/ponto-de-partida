@@ -511,7 +511,7 @@
     var h = '<a class="voltar-topo" href="#/planos">‹ Meus planos</a><h1>Comparar os planos</h1>' +
       '<p class="suave">Onde cada plano se destaca? Use a comparação para escolher o que perguntar primeiro, não para eleger um vencedor.</p>' +
       '<div class="cartao comparar"><table><tr><th></th>' + ps.map(function (p) { return '<th><span class="sobre">Plano ' + p.ordem + '</span><br>' + esc(p.titulo) + '</th>'; }).join('') + '</tr>' +
-      REGUA.map(function (x) { return '<tr><td><b>' + x[1] + '</b></td>' + ps.map(function (p) { return '<td>' + pontos(p[x[0]]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      REGUA.map(function (x) { return '<tr><td><b>' + x[1] + '</b></td>' + ps.map(function (p) { return '<td>' + pontos(p[x[0]]) + (p[x[0]] ? ' <b class="pequeno">' + p[x[0]] + '</b>' : ' <span class="pequeno suave">–</span>') + '</td>'; }).join('') + '</tr>'; }).join('') +
       '</table></div>';
     app.innerHTML = h;
   }
