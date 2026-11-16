@@ -38,9 +38,17 @@
   .acoes .botao { width: auto; flex: 1 1 220px; }
   .cabeca { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   /* encontros */
-  .novo { display: grid; grid-template-columns: 1fr 170px auto; gap: 10px; align-items: end; }
+  .novo { display: grid; grid-template-columns: 1.2fr 1fr 1fr 160px auto; gap: 10px; align-items: end; }
   .novo .botao { width: auto; min-height: 50px; padding: 12px 20px; }
+  @media (max-width: 900px) { .novo { grid-template-columns: 1fr 1fr; } .novo .botao { grid-column: 1 / -1; } }
   @media (max-width: 640px) { .novo { grid-template-columns: 1fr; } }
+  .enc-quem { font-size: .9rem; margin-top: 2px; }
+  .enc-quem.falta { color: #9A4B00; font-weight: 700; }
+  .comparar { overflow-x: auto; }
+  .comparar table { font-size: .88rem; min-width: 560px; }
+  .comparar th, .comparar td { border-top: 1px solid var(--linha); padding: 7px 6px; }
+  .comparar th:first-child, .comparar td:first-child { text-align: left; }
+  .comparar td.alto { font-weight: 800; }
   .encontro { border-top: 1px solid var(--linha); padding: 16px 0; }
   .encontro:first-of-type { border-top: 0; }
   .enc-topo { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
@@ -147,6 +155,8 @@
       '<p class="pequeno suave">O link de cada encontro fica aberto até a data do encontro seguinte.</p></div>' +
       '<form id="novo" class="novo">' +
       '<div class="campo"><label for="enc-nome">Nome do encontro</label><input id="enc-nome" type="text" maxlength="120" placeholder="Ex.: Consultoria"></div>' +
+      '<div class="campo"><label for="enc-tema">Tema</label><input id="enc-tema" type="text" maxlength="120" placeholder="Ex.: Carreira em consultoria"></div>' +
+      '<div class="campo"><label for="enc-mentor">Mentor</label><input id="enc-mentor" type="text" maxlength="120" placeholder="Nome de quem conduziu"></div>' +
       '<div class="campo"><label for="enc-data">Data</label><input id="enc-data" type="date" value="' + hojeISO() + '"></div>' +
       '<button class="botao" type="submit">Criar encontro</button></form>';
 
@@ -158,10 +168,16 @@
         '<div class="enc-topo"><div><span class="enc-nome">' + esc(e.nome) + '</span>' +
         '<span class="estado ' + (e.aberto ? 'aberto' : 'fechado') + '">' + (e.aberto ? 'aberto' : 'fechado') + '</span></div>' +
         '<span class="pequeno suave">' + dataBR(e.data) + '</span></div>' +
+        (e.tema || e.mentor
+          ? '<p class="enc-quem">' + [e.tema ? 'Tema: <b>' + esc(e.tema) + '</b>' : '', e.mentor ? 'Mentor: <b>' + esc(e.mentor) + '</b>' : ''].filter(Boolean).join(' · ') + '</p>'
+          : '<p class="enc-quem falta">Sem tema e mentor: preencha em “Tema e mentor” para comparar os encontros.</p>') +
         (recemCriado === e.slug ? '<p class="situacao ok" style="margin-top:8px">Encontro criado. Copie o link abaixo para o slide ou o WhatsApp.</p>' : '') +
         '<div class="enc-num"><span><b>' + e.respostas + '</b> responderam' + (turma ? ' (' + Math.round(e.respostas / turma * 100) + '% da turma)' : '') + '</span>' +
         '<span>Recomendação média <b>' + (e.media == null ? '–' : String(e.media).replace('.', ',')) + '</b></span>' +
-        '<span title="% que deram 9 ou 10 menos % que deram de 0 a 6">NPS <b>' + nps(e.notas, e.respostas) + '</b></span></div>';
+        '<span title="% que deram 9 ou 10 menos % que deram de 0 a 6">NPS <b>' + nps(e.notas, e.respostas) + '</b></span></div>' +
+        (e.medias && e.medias.n_novas ? '<div class="enc-num">' + NOTAS.slice(0, 4).map(function (n) {
+          return '<span>' + n[1] + ' <b>' + num1(e.medias[n[0]]) + '</b></span>';
+        }).join('') + (e.medias.n_novas < e.respostas ? '<span class="pequeno suave">(' + e.medias.n_novas + ' de ' + e.respostas + ' respostas têm estas notas)</span>' : '') + '</div>' : '');
       if (e.respostas) {
         h += '<div class="notas" aria-label="Quantas pessoas deram cada nota de 0 a 10">' +
           [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
@@ -172,18 +188,53 @@
       h += '<p class="link-enc">' + esc(link) + '</p><div class="mini">' +
         '<button class="forte" data-acao="copiar" data-link="' + esc(link) + '">Copiar link</button>' +
         (e.respostas ? '<button data-acao="ver">' + (abertos[e.id] ? 'Esconder respostas' : 'Ver respostas') + '</button><button data-acao="csv">CSV</button>' : '') +
+        '<button data-acao="editar">Tema e mentor</button>' +
         '<button data-acao="' + (e.fechado_manual ? 'reabrir' : 'fechar') + '">' + (e.fechado_manual ? 'Reabrir' : 'Fechar agora') + '</button>' +
         (e.respostas ? '' : '<button data-acao="apagar">Apagar</button>') + '</div>';
       if (abertos[e.id] && e.respostas) {
-        h += '<div class="respostas"><table><tr><th>Nome</th><th>Nota</th><th>O que levo</th><th>Critério</th><th>Até a próxima</th><th>O que faria melhor</th></tr>' +
+        h += '<div class="respostas"><table><tr><th>Nome</th>' + NOTAS.map(function (n) { return '<th title="' + n[1] + '">' + n[2] + '</th>'; }).join('') + '<th>O que levo</th><th>Critério</th><th>Até a próxima</th><th>O que faria melhor</th></tr>' +
           e.linhas.map(function (l) {
-            return '<tr><td>' + esc(l.nome || l.email) + '</td><td class="n">' + l.recomendacao + '</td><td>' + esc(l.levo) + '</td><td>' + esc(l.criterio) +
+            return '<tr><td>' + esc(l.nome || l.email) + '</td>' + NOTAS.map(function (n) { return '<td class="n">' + (l[n[0]] == null ? '–' : l[n[0]]) + '</td>'; }).join('') + '<td>' + esc(l.levo) + '</td><td>' + esc(l.criterio) +
               '</td><td>' + esc(l.proximo) + '</td><td>' + esc(l.melhorar) + '</td></tr>';
           }).join('') + '</table></div>';
       }
       h += '</div>';
     });
-    return h + '</div>';
+    return h + blocoComparar(d.encontros) + '</div>';
+  }
+
+  /* comparação entre encontros: médias por mentor e por tema (só respostas com as notas novas) */
+  function blocoComparar(encontros) {
+    function agrupar(chave) {
+      var g = {};
+      encontros.forEach(function (e) {
+        var k = (e[chave] || '').trim(); if (!k) return;
+        var x = g[k] || (g[k] = { nome: k, encontros: 0, n: 0, soma: {}, cont: {} });
+        x.encontros++;
+        e.linhas.forEach(function (l) {
+          if (l.mentor_geral == null && l.tema_relevancia == null) return;
+          x.n++;
+          NOTAS.forEach(function (n) { if (l[n[0]] != null) { x.soma[n[0]] = (x.soma[n[0]] || 0) + l[n[0]]; x.cont[n[0]] = (x.cont[n[0]] || 0) + 1; } });
+        });
+      });
+      return Object.keys(g).map(function (k) { return g[k]; }).filter(function (x) { return x.n; });
+    }
+    function tabela(titulo, linhas, ordem) {
+      if (!linhas.length) return '';
+      linhas.forEach(function (x) { NOTAS.forEach(function (n) { x[n[0]] = x.cont[n[0]] ? x.soma[n[0]] / x.cont[n[0]] : null; }); });
+      linhas.sort(function (a, b) { return (b[ordem] || 0) - (a[ordem] || 0); });
+      var max = {}; NOTAS.forEach(function (n) { max[n[0]] = Math.max.apply(null, linhas.map(function (x) { return x[n[0]] || 0; })); });
+      return '<div class="comparar"><p class="sobre" style="margin-top:14px">' + titulo + '</p><table><tr><th>' + (titulo === 'Por mentor' ? 'Mentor' : 'Tema') +
+        '</th><th>Encontros</th><th>Respostas</th>' + NOTAS.map(function (n) { return '<th title="' + n[1] + '">' + n[2] + '</th>'; }).join('') + '</tr>' +
+        linhas.map(function (x) {
+          return '<tr><td>' + esc(x.nome) + '</td><td>' + x.encontros + '</td><td>' + x.n + '</td>' + NOTAS.map(function (n) {
+            var v = x[n[0]]; return '<td class="' + (linhas.length > 1 && v != null && v === max[n[0]] ? 'alto' : '') + '">' + (v == null ? '–' : num1(Math.round(v * 10) / 10)) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</table></div>';
+    }
+    var h = tabela('Por mentor', agrupar('mentor'), 'mentor_geral') + tabela('Por tema', agrupar('tema'), 'tema_relevancia');
+    return h ? '<div class="encontro"><h2 style="font-size:1.1rem">Comparar encontros</h2>' +
+      '<p class="pequeno suave">Média das notas de 0 a 10, só com respostas que têm as perguntas de tema e mentor. Em negrito, a maior de cada coluna.</p>' + h + '</div>' : '';
   }
 
   function desenhar() {
@@ -199,7 +250,7 @@
     var desc = d.descreve || {};
     var semanas = d.registros_semana || [];
     var todasExit = [];
-    d.encontros.forEach(function (e) { e.linhas.forEach(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; x.data_encontro = e.data; todasExit.push(x); }); });
+    d.encontros.forEach(function (e) { e.linhas.forEach(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; x.data_encontro = e.data; x.tema = e.tema; x.mentor = e.mentor; todasExit.push(x); }); });
 
     var h = '<div class="cabeca"><h1>Painel do facilitador</h1>' +
       '<p class="pequeno suave">Atualiza a cada 15 s · <span id="hora">' + new Date(d.agora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '</span></p></div>';
@@ -300,17 +351,23 @@
     document.getElementById('novo').onsubmit = function (ev) {
       ev.preventDefault();
       var nome = document.getElementById('enc-nome').value.trim(), data = document.getElementById('enc-data').value;
-      if (!nome || !data) { alert('Preencha o nome e a data do encontro.'); return; }
+      var tema = document.getElementById('enc-tema').value.trim(), mentor = document.getElementById('enc-mentor').value.trim();
+      if (!nome || !data || !tema || !mentor) { alert('Preencha nome, tema, mentor e data do encontro.'); return; }
       this.querySelector('button').disabled = true;
       document.activeElement.blur();
-      acao('pdp_encontro_criar', { p_nome: nome, p_data: data }).then(function (r) { if (r) recemCriado = r.slug; });
+      acao('pdp_encontro_criar', { p_nome: nome, p_data: data, p_tema: tema, p_mentor: mentor }).then(function (r) { if (r) recemCriado = r.slug; });
     };
     Array.prototype.forEach.call(app.querySelectorAll('.encontro [data-acao]'), function (b) {
       b.onclick = function () {
         var id = b.closest('.encontro').getAttribute('data-id'), e = d.encontros.filter(function (x) { return x.id === id; })[0], tipo = b.getAttribute('data-acao');
         if (tipo === 'copiar') copiar(b.getAttribute('data-link'), b);
         else if (tipo === 'ver') { abertos[id] = !abertos[id]; desenhar(); }
-        else if (tipo === 'csv') baixar('encontro-' + e.nome.toLowerCase().replace(/[^a-z0-9]+/gi, '-'), e.linhas.map(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; return x; }), COLUNAS_EXIT);
+        else if (tipo === 'csv') baixar('encontro-' + e.nome.toLowerCase().replace(/[^a-z0-9]+/gi, '-'), e.linhas.map(function (l) { var x = {}; for (var k in l) x[k] = l[k]; x.encontro = e.nome; x.tema = e.tema; x.mentor = e.mentor; return x; }), COLUNAS_EXIT);
+        else if (tipo === 'editar') {
+          var t = prompt('Tema de “' + e.nome + '”:', e.tema || e.nome); if (t === null) return;
+          var m = prompt('Mentor de “' + e.nome + '”:', e.mentor || ''); if (m === null) return;
+          acao('pdp_encontro_editar', { p_id: id, p_tema: t.trim(), p_mentor: m.trim() });
+        }
         else if (tipo === 'fechar') { if (confirm('Fechar “' + e.nome + '” para novas respostas?')) acao('pdp_encontro_fechar', { p_id: id, p_fechar: true }); }
         else if (tipo === 'reabrir') acao('pdp_encontro_fechar', { p_id: id, p_fechar: false });
         else if (tipo === 'apagar') { if (confirm('Apagar “' + e.nome + '”? Ele ainda não tem respostas.')) acao('pdp_encontro_apagar', { p_id: id }); }
@@ -333,7 +390,11 @@
 
   var COLUNAS_PDP = ['nome', 'email', 'curso', 'formatura', 'momento', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7',
     'etapa_calculada', 'etapa_percebida', 'diferenca', 'consolidada', 'te_descreve', 'exit_tickets', 'fez_meu_teste', 'teste', 'criado_em'];
-  var COLUNAS_EXIT = ['encontro', 'nome', 'email', 'recomendacao', 'levo', 'criterio', 'proximo', 'melhorar', 'criado_em'];
+  var COLUNAS_EXIT = ['encontro', 'tema', 'mentor', 'nome', 'email', 'tema_relevancia', 'mentor_clareza', 'mentor_dominio', 'mentor_geral', 'recomendacao', 'levo', 'criterio', 'proximo', 'melhorar', 'criado_em'];
+  // notas de 0 a 10 do exit ticket: [coluna, rótulo, rótulo curto]
+  var NOTAS = [['tema_relevancia', 'Relevância do tema', 'Tema'], ['mentor_clareza', 'Clareza do mentor', 'Clareza'],
+    ['mentor_dominio', 'Domínio do assunto', 'Domínio'], ['mentor_geral', 'Mentor no geral', 'Mentor'], ['recomendacao', 'Recomendaria a um amigo', 'Recom.']];
+  function num1(v) { return v == null ? '–' : String(v).replace('.', ','); }
 
   function celula(v) {
     if (v === true) v = 'sim'; else if (v === false) v = 'não'; else if (v == null) v = '';

@@ -544,6 +544,14 @@
   /* ---------- exit ticket de um encontro (único jeito de registrar reflexão e retorno) ---------- */
   var infoEncontros = P.ler('pdp_info_encontros', {});
 
+  // notas de 0 a 10 do exit ticket, na ordem em que aparecem (do específico ao geral)
+  var NOTAS_EXIT = [
+    ['tema_relevancia', 'De 0 a 10, quanto este tema foi relevante para você?', 'Relevância do tema', 'nada relevante', 'muito relevante'],
+    ['mentor_clareza', 'De 0 a 10, como você avalia a clareza do mentor?', 'Clareza do mentor', 'nada claro', 'muito claro'],
+    ['mentor_dominio', 'De 0 a 10, quanto o mentor dominava o assunto?', 'Domínio do assunto', 'nada', 'totalmente'],
+    ['mentor_geral', 'De 0 a 10, como você avalia o mentor no geral?', 'Mentor no geral', 'muito mal', 'muito bem'],
+    ['recomendacao', 'De 0 a 10, o quanto você recomendaria este encontro a um amigo interessado no tema?', 'Recomendaria a um amigo', 'nada provável', 'muito provável']];
+
   function telaExit(r) {
     var slug = (r[1] || '').replace(/[^A-Za-z0-9]/g, '');
     if (!slug) { ir(identificado() ? 'inicio' : '', true); return; }
@@ -551,7 +559,8 @@
     var local = exitsLocais[slug] || (exitsLocais[slug] = { id: P.uuid() });
     var doBanco = casa.exits.filter(function (x) { return x.slug === slug; })[0];
     if (doBanco && local.recomendacao == null) {           // respondido em outro aparelho
-      local.id = doBanco.id; local.recomendacao = doBanco.recomendacao;
+      local.id = doBanco.id;
+      NOTAS_EXIT.forEach(function (n) { local[n[0]] = doBanco[n[0]] == null ? null : doBanco[n[0]]; });
       EXIT.forEach(function (c) { local[c[0]] = doBanco[c[0]] || ''; }); local.enviado = true;
     }
 
@@ -563,8 +572,12 @@
       app.innerHTML = '<p class="sobre">Reflexão do encontro</p><h1>' + esc(titulo) + '</h1><p>' + texto + '</p>' + rodape();
     }
     function cabeca() {
+      var sub = [];
+      if (info && info.tema && info.tema !== info.nome) sub.push(esc(info.tema));
+      if (info && info.mentor) sub.push('com ' + esc(info.mentor));
+      if (info && info.data) sub.push(new Date(info.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }));
       return '<p class="sobre">Reflexão do encontro</p><h1>' + esc(info && info.nome ? info.nome : 'Encontro da Trilha') + '</h1>' +
-        (info && info.data ? '<p class="suave">' + new Date(info.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }) + '</p>' : '');
+        (sub.length ? '<p class="suave">' + sub.join(' · ') + '</p>' : '');
     }
 
     function mostrar() {
@@ -577,7 +590,9 @@
     function resumo() {
       app.innerHTML = cabeca() +
         '<div class="situacao ok">Reflexão guardada. Até o próximo encontro!</div>' +
-        '<div class="cartao"><p class="sobre">Recomendaria a um amigo</p><p class="titulo" style="font-size:1.6rem;margin-top:4px">' + local.recomendacao + ' <span class="suave pequeno">de 10</span></p>' +
+        '<div class="cartao"><dl class="reflexao notas-resumo">' + NOTAS_EXIT.map(function (n) {
+          return local[n[0]] == null ? '' : '<dt>' + n[2] + '</dt><dd><b>' + local[n[0]] + '</b> <span class="suave pequeno">de 10</span></dd>';
+        }).join('') + '</dl>' +
         '<dl class="reflexao">' + EXIT.map(function (c) { return local[c[0]] ? '<dt>' + c[1] + '</dt><dd>' + esc(local[c[0]]) + '</dd>' : ''; }).join('') + '</dl></div>' +
         (!info || info.aberto ? '<button class="botao claro" id="editar">Corrigir minha resposta</button>' : '') + rodape();
       var b = document.getElementById('editar');
@@ -588,12 +603,16 @@
       var d = local, h = cabeca() + '<form id="f" class="pilha" style="gap:18px" novalidate>';
       if (!identificado()) h += '<div class="campo"><label for="email">Seu e-mail (o mesmo do ponto de partida)</label>' +
         '<input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="160" value="' + esc(d.email) + '"></div>';
-      h += '<div class="cartao pilha" style="gap:10px"><p class="sobre">Sobre o encontro</p>' +
-        '<p class="andaime" style="margin:0">De 0 a 10, o quanto você recomendaria este encontro a um amigo interessado no tema?</p>' +
-        '<div class="nota-grade" role="radiogroup" aria-label="Nota de 0 a 10">' +
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
-          return '<button type="button" role="radio" aria-checked="' + (d.recomendacao === n) + '" class="nota' + (d.recomendacao === n ? ' marcado' : '') + '" data-n="' + n + '">' + n + '</button>';
-        }).join('') + '</div><div class="nota-legenda"><span>nada provável</span><span>muito provável</span></div></div>';
+      h += '<div class="cartao pilha" style="gap:10px"><p class="sobre">Sobre o encontro</p>';
+      NOTAS_EXIT.forEach(function (q, i) {
+        h += '<div class="pilha" style="gap:10px' + (i ? ';margin-top:12px' : '') + '" data-q="' + q[0] + '">' +
+          '<p class="andaime" style="margin:0" id="q-' + q[0] + '">' + q[1] + '</p>' +
+          '<div class="nota-grade" role="radiogroup" aria-labelledby="q-' + q[0] + '">' +
+          [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
+            return '<button type="button" role="radio" aria-checked="' + (d[q[0]] === n) + '" class="nota' + (d[q[0]] === n ? ' marcado' : '') + '" data-n="' + n + '">' + n + '</button>';
+          }).join('') + '</div><div class="nota-legenda"><span>' + q[3] + '</span><span>' + q[4] + '</span></div></div>';
+      });
+      h += '</div>';
       h += '<div class="cartao pilha" style="gap:14px"><p class="sobre">Reflexão</p>';
       EXIT.slice(0, 3).forEach(function (c) {
         h += '<div class="campo"><label for="' + c[0] + '">' + c[1] + (c[0] === 'criterio' ? ' (ou confirmei)' : '') + '</label>' +
@@ -608,8 +627,9 @@
       function guardarLocal() { P.gravar('pdp_exits', exitsLocais); }
       document.getElementById('f').addEventListener('input', function (ev) { if (ev.target.id) { d[ev.target.id] = ev.target.value; guardarLocal(); } });
       aoClicar('[data-n]', function (b) {
-        d.recomendacao = Number(b.getAttribute('data-n')); guardarLocal();
-        Array.prototype.forEach.call(app.querySelectorAll('[data-n]'), function (x) {
+        var grupo = b.closest('[data-q]');
+        d[grupo.getAttribute('data-q')] = Number(b.getAttribute('data-n')); guardarLocal();
+        Array.prototype.forEach.call(grupo.querySelectorAll('[data-n]'), function (x) {
           var on = x === b; x.classList.toggle('marcado', on); x.setAttribute('aria-checked', on);
         });
       });
@@ -617,15 +637,17 @@
         ev.preventDefault();
         var erro = document.getElementById('erro'), mail = (d.email || '').trim().toLowerCase();
         var falta = (!identificado() && !/^\S+@\S+\.\S+$/.test(mail)) ? 'Informe seu e-mail.' :
-          d.recomendacao == null ? 'Escolha uma nota de 0 a 10.' :
+          NOTAS_EXIT.some(function (n) { return d[n[0]] == null; }) ? 'Escolha um número de 0 a 10 em cada pergunta sobre o encontro.' :
           !EXIT.slice(0, 3).some(function (c) { return (d[c[0]] || '').trim(); }) ? 'Escreva em pelo menos um dos campos da reflexão.' : '';
         if (falta) { erro.textContent = falta; erro.hidden = false; return; }
         if (!identificado()) { email = mail; P.gravar('pdp_email', email); }
-        var q = quem(), p = { id: d.id, encontro: slug, token: q.token, email: q.email, recomendacao: d.recomendacao };
+        var q = quem(), p = { id: d.id, encontro: slug, token: q.token, email: q.email };
+        NOTAS_EXIT.forEach(function (n) { p[n[0]] = d[n[0]]; });
         EXIT.forEach(function (c) { d[c[0]] = (d[c[0]] || '').trim(); p[c[0]] = d[c[0]]; });
         P.enfileirar('pdp_exit_enviar', { p: p });
         d.enviado = true; d.editando = false; guardarLocal();
-        var item = { id: d.id, slug: slug, encontro: info && info.nome, data: info && info.data, recomendacao: d.recomendacao, criado_em: new Date().toISOString() };
+        var item = { id: d.id, slug: slug, encontro: info && info.nome, data: info && info.data, tema: info && info.tema, mentor: info && info.mentor, criado_em: new Date().toISOString() };
+        NOTAS_EXIT.forEach(function (n) { item[n[0]] = d[n[0]]; });
         EXIT.forEach(function (c) { item[c[0]] = d[c[0]]; });
         casa.exits = [item].concat(casa.exits.filter(function (x) { return x.slug !== slug; })); salvarCasa();
         desenhar();
